@@ -27,6 +27,7 @@ export const useWebRTC = () => {
   const connections = useRef<Map<string, WebRTCConnection>>(new Map());
   const [incomingFile, setIncomingFile] = useState<{from: string, fileName: string, fileSize: number, socketId: string} | null>(null);
   const [incomingFileRequest, setIncomingFileRequest] = useState<{from: string, fromName: string, fileName: string, fileSize: number, socketId: string} | null>(null);
+  const [incomingBatchRequest, setIncomingBatchRequest] = useState<{from: string, fromName: string, files: {fileName: string, fileSize: number}[], socketId: string, batchId: string} | null>(null);
   const [transferProgress, setTransferProgress] = useState<{socketId: string, fileName: string, progress: number, type: 'sending' | 'receiving'} | null>(null);
 
   const acceptFile = useCallback((socketId: string) => {
@@ -40,6 +41,20 @@ export const useWebRTC = () => {
     if (socket) {
       socket.emit('file-response', { target: socketId, accepted: false });
       setIncomingFileRequest(null);
+    }
+  }, [socket]);
+
+  const acceptBatchFiles = useCallback((socketId: string, batchId: string) => {
+    if (socket) {
+      socket.emit('batch-file-response', { target: socketId, accepted: true, batchId });
+      setIncomingBatchRequest(null);
+    }
+  }, [socket]);
+
+  const rejectBatchFiles = useCallback((socketId: string, batchId: string) => {
+    if (socket) {
+      socket.emit('batch-file-response', { target: socketId, accepted: false, batchId });
+      setIncomingBatchRequest(null);
     }
   }, [socket]);
 
@@ -216,6 +231,58 @@ export const useWebRTC = () => {
       throw error;
     }
   }, [socket, deviceInfo]);
+
+  const sendBatchFiles = useCallback(async (files: File[], targetSocketId: string) => {
+    console.log('sendBatchFiles called with:', files.length, 'files, to:', targetSocketId);
+    
+    if (!socket) {
+      throw new Error('Socket not connected');
+    }
+
+    // Generate unique batch ID
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Prepare file info for batch request
+    const fileInfos = files.map(file => ({
+      fileName: file.name,
+      fileSize: file.size
+    }));
+
+    // Send batch file request
+    socket.emit('batch-file-request', {
+      target: targetSocketId,
+      files: fileInfos,
+      fromName: deviceInfo?.deviceName || 'Unknown Device',
+      batchId
+    });
+
+    // Wait for batch response
+    const batchAccepted = await new Promise<boolean>((resolve, reject) => {
+      const handleBatchResponse = (data: { accepted: boolean, batchId: string, from: string }) => {
+        if (data.from === targetSocketId && data.batchId === batchId) {
+          clearTimeout(timeout);
+          socket.off('batch-file-response', handleBatchResponse);
+          resolve(data.accepted);
+        }
+      };
+      
+      const timeout = setTimeout(() => {
+        socket.off('batch-file-response', handleBatchResponse);
+        reject(new Error('Batch file request timeout'));
+      }, 30000);
+      
+      socket.on('batch-file-response', handleBatchResponse);
+    });
+
+    if (!batchAccepted) {
+      throw new Error('Batch file transfer rejected');
+    }
+
+    // If accepted, send all files sequentially
+    for (const file of files) {
+      await sendFile(file, targetSocketId);
+    }
+  }, [socket, deviceInfo, sendFile]);
 
   useEffect(() => {
     const socketInstance = io('http://localhost:3002');
@@ -405,8 +472,22 @@ export const useWebRTC = () => {
       });
     });
 
+    socketInstance.on('batch-file-request', (data: { files: {fileName: string, fileSize: number}[], fromName: string, from: string, batchId: string }) => {
+      setIncomingBatchRequest({
+        files: data.files,
+        fromName: data.fromName,
+        from: data.fromName,
+        socketId: data.from,
+        batchId: data.batchId
+      });
+    });
+
     socketInstance.on('file-response', (data: { accepted: boolean, from: string }) => {
       // This is handled in the sendFile function
+    });
+
+    socketInstance.on('batch-file-response', (data: { accepted: boolean, batchId: string, from: string }) => {
+      // This is handled in the sendBatchFiles function
     });
 
     socketInstance.on('transfer-progress', (data: { progress: number, fileName: string, from: string }) => {
@@ -434,11 +515,15 @@ export const useWebRTC = () => {
     deviceInfo,
     isConnected,
     sendFile,
+    sendBatchFiles,
     incomingFile,
     incomingFileRequest,
+    incomingBatchRequest,
     transferProgress,
     acceptFile,
     rejectFile,
+    acceptBatchFiles,
+    rejectBatchFiles,
     changeDeviceName
   };
 };

@@ -9,28 +9,39 @@ Un'applicazione moderna per la condivisione di file nella rete locale tramite We
 - Barre di progresso sincronizzate in tempo reale
 - Sistema di accettazione/rifiuto file
 - Nomi dispositivi personalizzabili
+- **Supporto multilingue** - Italiano/Inglese con rilevamento automatico
+- **Tema scuro/chiaro** - Con rilevamento preferenze sistema
+- **Trasferimento batch** - Invio di file multipli con popup unificato
+- **Design moderno** - Interfaccia bento-style con shadcn/ui e font Silkscreen
 - Interfaccia moderna e intuitiva
 
 ## Come funziona
 
 ### Utilizzo
-- **Seleziona dispositivo**: Clicca su un dispositivo dalla lista
+- **Seleziona dispositivo**: Clicca su un dispositivo dalla sidebar sinistra
 - **Invia file**: Trascina file o clicca "Seleziona File"
-- **Accetta/Rifiuta**: Rispondi alle richieste di trasferimento
+- **File multipli**: Aggiungi più file alla coda prima di inviare
+- **Accetta/Rifiuta**: Rispondi alle richieste di trasferimento (popup unificato per file multipli)
 - **Rinomina dispositivo**: Clicca l'icona matita accanto al nome
+- **Cambia lingua**: Usa il toggle 🇮🇹/🇺🇸 nell'header
+- **Cambia tema**: Usa il toggle sole/luna per tema scuro/chiaro
 
 ### Funzionalità
 - **Drag & Drop**: Trascina file direttamente nell'area di upload
-- **Multi-file**: Selezione e invio di più file contemporaneamente
+- **Multi-file**: Selezione e invio di più file contemporaneamente con coda
+- **Batch Transfer**: I file multipli vengono presentati in un unico popup al destinatario
 - **Progresso real-time**: Monitoraggio trasferimento su entrambi i dispositivi
 - **Connessione diretta**: Nessun dato passa attraverso server esterni
+- **Layout sidebar**: Menu completo a sinistra, area trasferimento a destra
+- **Tema adattivo**: Supporto automatico tema scuro/chiaro del sistema
+- **Multilingue**: Interfaccia completamente tradotta in italiano e inglese
 
 ## Installazione
 
 ### Sviluppo locale
 ```bash
 # Clona il repository
-git clone <url-repository>
+git clone https://github.com/GavaOfficial/GavaDrop
 cd GavaDrop
 
 # Installa dipendenze
@@ -72,14 +83,21 @@ GavaDrop/
 │   ├── app/                      # App Router Next.js
 │   │   ├── page.tsx             # Pagina principale
 │   │   ├── layout.tsx           # Layout applicazione
-│   │   └── globals.css          # Stili globali
+│   │   └── globals.css          # Stili globali + font Silkscreen
 │   ├── components/              # Componenti UI
-│   │   └── ui/                  # Componenti shadcn/ui
+│   │   ├── ui/                  # Componenti shadcn/ui
+│   │   ├── theme-provider.tsx   # Provider tema scuro/chiaro
+│   │   ├── theme-toggle.tsx     # Toggle tema
+│   │   └── language-toggle.tsx  # Toggle lingua
+│   ├── contexts/                # Context providers
+│   │   └── language-context.tsx # Gestione multilingue
 │   ├── hooks/                   # Custom hooks React
 │   │   └── useWebRTC.ts         # Hook per WebRTC
 │   └── lib/                     # Utilità
 │       └── utils.ts             # Funzioni helper
 ├── public/                      # Asset statici
+│   ├── icon.png                 # Icona applicazione personalizzata
+│   └── Silkscreen/              # Font pixel Silkscreen per header
 ├── server.js                    # Server di signaling Socket.IO
 ├── package.json                 # Dipendenze e scripts
 ├── tsconfig.json               # Configurazione TypeScript
@@ -95,8 +113,11 @@ GavaDrop/
 - **Next.js 15** - Framework React con Turbopack
 - **TypeScript** - Type safety e developer experience
 - **Tailwind CSS** - Styling responsive e moderno
-- **shadcn/ui** - Componenti UI accessibili
+- **shadcn/ui** - Componenti UI accessibili con Radix UI
+- **next-themes** - Gestione tema scuro/chiaro con preferenze sistema
+- **React Context** - Gestione stato multilingue e tema
 - **React Hooks** - Gestione stato e side effects
+- **Silkscreen Font** - Font pixel personalizzato per header
 
 ### Backend
 - **Node.js** - Runtime server

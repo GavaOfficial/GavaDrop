@@ -1,6 +1,74 @@
 # GavaDrop - Update History
 
-## Version 0.8.0 (Current)
+## Version 0.8.5 (Current)
+
+### Multi-Language Support System
+- **Complete internationalization (i18n) implementation** with Italian and English
+  - Dynamic language switching with dropdown toggle in sidebar header
+  - Auto-detection of browser language with fallback to Italian
+  - Persistent language preference storage in localStorage
+  - Complete UI translation including dialogs, toasts, and all interface elements
+  - React Context-based language management with translation function
+  
+### Advanced Theme System
+- **Dark/Light theme support** with system preference detection
+  - next-themes integration for seamless theme switching
+  - System preference auto-detection with manual override option
+  - Persistent theme storage with proper SSR handling
+  - Complete UI adaptation for both light and dark modes
+  - Theme toggle component in sidebar header with sun/moon icons
+
+### Enhanced UI/UX Design
+- **Complete design system overhaul** with modern bento-style layout
+  - Full-page left sidebar with devices list and controls
+  - Right-side file transfer area with improved visual hierarchy
+  - Custom Silkscreen pixel font integration for headers and titles
+  - Custom app icon integration (/public/icon.png) throughout interface
+  - Improved color scheme using shadcn/ui design tokens
+  - Enhanced visual feedback and hover states for all interactive elements
+
+### Batch File Transfer System
+- **Multi-file transfer queue implementation**
+  - Add multiple files before sending with visual queue management
+  - Single unified popup for batch file acceptance/rejection
+  - Individual file removal from queue before sending
+  - Clear all files functionality with confirmation
+  - Improved drag & drop area that adapts to queue state
+  - Send button activation only when files are queued and device selected
+
+### Advanced State Management
+- **Improved React hooks and state management**
+  - Enhanced useWebRTC hook with batch transfer capabilities
+  - Proper cleanup and error handling for all transfer states
+  - Better dependency management in useCallback hooks
+  - Improved loading states and user feedback during operations
+  - Enhanced toast notification system with translated messages
+
+### User Interface Improvements
+- **Enhanced sidebar layout and device management**
+  - Dedicated language and theme toggles in header
+  - Improved device selection with visual indicators
+  - Better responsive design for various screen sizes
+  - Enhanced file queue visualization with progress indicators
+  - Improved button states and loading animations
+
+### Technical Enhancements
+- **Modern React patterns and best practices**
+  - Proper TypeScript usage with strict typing for translation keys
+  - Context providers for theme and language state management
+  - Component composition with proper prop interfaces
+  - Enhanced error boundaries and loading state management
+  - Optimized re-rendering with proper dependency arrays
+
+### Developer Experience
+- **Improved development workflow**
+  - Better component organization with dedicated contexts folder
+  - Cleaner separation of concerns between UI and business logic
+  - Enhanced code maintainability with translation system
+  - Better debugging capabilities with proper error handling
+  - Comprehensive component documentation through TypeScript interfaces
+
+## Version 0.8.0
 
 ### File Transfer & WebRTC Implementation
 - **Complete WebRTC-based file transfer system** with peer-to-peer communication

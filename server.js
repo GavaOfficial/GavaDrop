@@ -109,6 +109,24 @@ io.on('connection', (socket) => {
       from: socket.id
     });
   });
+
+  // Handle batch file requests (multiple files at once)
+  socket.on('batch-file-request', (data) => {
+    socket.to(data.target).emit('batch-file-request', {
+      files: data.files, // Array of {fileName, fileSize}
+      fromName: data.fromName,
+      from: socket.id,
+      batchId: data.batchId
+    });
+  });
+
+  socket.on('batch-file-response', (data) => {
+    socket.to(data.target).emit('batch-file-response', {
+      accepted: data.accepted, // Array of booleans or single boolean for all
+      batchId: data.batchId,
+      from: socket.id
+    });
+  });
   
   socket.on('file-response', (data) => {
     socket.to(data.target).emit('file-response', {
