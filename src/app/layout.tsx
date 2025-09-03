@@ -6,13 +6,13 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/contexts/language-context";
 
 const geistSans = localFont({
-  src: "../fonts/Geist-Regular.ttf",
+  src: "../../public/fonts/Geist-Regular.ttf",
   variable: "--font-geist-sans",
   weight: "400",
 });
 
 const geistMono = localFont({
-  src: "../fonts/GeistMono-Regular.ttf",
+  src: "../../public/fonts/GeistMono-Regular.ttf",
   variable: "--font-geist-mono",
   weight: "400",
 });
