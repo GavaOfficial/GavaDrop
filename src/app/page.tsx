@@ -93,14 +93,15 @@ export default function Home() {
       // Clear selected files only after successful sending
       setSelectedFiles([]);
       clearSavedFiles();
-    } catch (error: any) {
-      if (error.message === 'Batch file transfer rejected') {
+    } catch (error: unknown) {
+      const message = (error as Error).message;
+      if (message === 'Batch file transfer rejected') {
         toast.error(t("toast.rejected"));
-      } else if (error.message === 'Batch file request timeout') {
+      } else if (message === 'Batch file request timeout') {
         toast.error(t("toast.timeout"));
-      } else if (error.message === 'File transfer rejected') {
+      } else if (message === 'File transfer rejected') {
         toast.error(t("toast.fileRejected"));
-      } else if (error.message === 'File request timeout') {
+      } else if (message === 'File request timeout') {
         toast.error(t("toast.fileTimeout"));
       } else {
         toast.error(t("toast.sendError"));
@@ -984,7 +985,7 @@ export default function Home() {
               {t("dialog.fileRequest")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} "{incomingFileRequest?.fileName}" 
+              {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} &quot;{incomingFileRequest?.fileName}&quot;
               ({incomingFileRequest ? formatFileSize(incomingFileRequest.fileSize) : ''}).
               <br />
               {t("dialog.acceptFile")}

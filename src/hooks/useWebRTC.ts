@@ -307,6 +307,7 @@ export const useWebRTC = () => {
 
       // Send file request first
       console.log('Sending file request...');
+      if (!socket) throw new Error('Socket not connected');
       socket.emit('file-request', {
         target: targetSocketId,
         fileName: file.name,
@@ -393,18 +394,18 @@ export const useWebRTC = () => {
     };
 
       sendChunk();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setTransferProgress(null);
-      
+
       // Only clean up connection on non-rejection errors
-      if (error.message !== 'File transfer rejected') {
+      if ((error as Error).message !== 'File transfer rejected') {
         const connection = connections.current.get(targetSocketId);
         if (connection) {
           connection.peerConnection.close();
           connections.current.delete(targetSocketId);
         }
       }
-      
+
       throw error;
     }
   }, [socket, deviceInfo]);

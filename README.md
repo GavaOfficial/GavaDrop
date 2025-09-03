@@ -80,11 +80,12 @@ http://localhost:3002
 
 ### Produzione
 ```bash
-# Build dell'applicazione
-npm run build
+# Export statico dell'applicazione (cartella `out/`)
+npm run export
 
-# Avvia in modalità produzione
-npm start
+# Servi i file generati con un qualsiasi server statico
+# (esempio con `serve`)
+npx serve out
 
 # Server di signaling
 node server.js
