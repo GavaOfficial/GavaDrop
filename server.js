@@ -12,6 +12,7 @@ const io = new Server(server, {
 
 const rooms = new Map();
 const clients = new Map();
+const persistentClients = new Map(); // Maps clientId to socketId
 
 function getDeviceName() {
   const adjectives = ['Quick', 'Silent', 'Bright', 'Swift', 'Gentle', 'Bold', 'Calm', 'Smart'];
@@ -33,19 +34,16 @@ io.on('connection', (socket) => {
   
   const clientIp = socket.handshake.address || socket.conn.remoteAddress;
   const roomId = getRoomId(clientIp);
-  const deviceId = uuidv4();
-  const deviceName = getDeviceName();
   
-  const client = {
+  // Initialize client without device info - wait for client-init event
+  let client = {
     id: socket.id,
-    deviceId,
-    deviceName,
+    deviceId: null,
+    deviceName: null,
+    clientId: null,
     ip: clientIp,
     roomId
   };
-  
-  // Track if we need to use a custom name
-  let useCustomName = false;
   
   clients.set(socket.id, client);
   socket.join(roomId);
@@ -54,30 +52,62 @@ io.on('connection', (socket) => {
     rooms.set(roomId, new Set());
   }
   rooms.get(roomId).add(socket.id);
-  
-  socket.emit('device-info', {
-    deviceId,
-    deviceName
-  });
-  
-  const roomClients = Array.from(rooms.get(roomId) || [])
-    .filter(id => id !== socket.id)
-    .map(id => {
-      const client = clients.get(id);
-      return client ? {
+
+  // Handle client initialization with persistent ID
+  socket.on('client-init', (data) => {
+    const { clientId, deviceName } = data;
+    
+    // Check if this client ID already exists and has a device name
+    let finalDeviceName = deviceName;
+    let deviceId = uuidv4();
+    
+    // If no saved device name, generate a new one
+    if (!finalDeviceName) {
+      finalDeviceName = getDeviceName();
+    }
+    
+    // Update client info
+    client = {
+      ...client,
+      deviceId,
+      deviceName: finalDeviceName,
+      clientId
+    };
+    
+    clients.set(socket.id, client);
+    persistentClients.set(clientId, socket.id);
+    
+    console.log(`Client initialized: ${socket.id}, clientId: ${clientId}, name: ${finalDeviceName}`);
+    
+    socket.emit('device-info', {
+      deviceId,
+      deviceName: finalDeviceName
+    });
+    
+    const roomClients = Array.from(rooms.get(roomId) || [])
+      .filter(id => id !== socket.id)
+      .map(id => {
+        const peer = clients.get(id);
+        return peer && peer.deviceId ? {
+          deviceId: peer.deviceId,
+          deviceName: peer.deviceName,
+          socketId: id,
+          clientId: peer.clientId
+        } : null;
+      })
+      .filter(Boolean);
+    
+    socket.emit('peers-list', roomClients);
+    
+    // Only broadcast peer-joined if we have device info
+    if (client.deviceId) {
+      socket.to(roomId).emit('peer-joined', {
         deviceId: client.deviceId,
         deviceName: client.deviceName,
-        socketId: id
-      } : null;
-    })
-    .filter(Boolean);
-  
-  socket.emit('peers-list', roomClients);
-  
-  socket.to(roomId).emit('peer-joined', {
-    deviceId,
-    deviceName,
-    socketId: socket.id
+        socketId: socket.id,
+        clientId: client.clientId
+      });
+    }
   });
   
   socket.on('webrtc-offer', (data) => {
@@ -142,6 +172,14 @@ io.on('connection', (socket) => {
       from: socket.id
     });
   });
+
+  // Handle chat messages
+  socket.on('chat-message', (data) => {
+    socket.to(data.target).emit('chat-message', {
+      message: data.message,
+      from: socket.id
+    });
+  });
   
   socket.on('change-device-name', (data) => {
     const client = clients.get(socket.id);
@@ -169,54 +207,6 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('set-device-name', (data) => {
-    const client = clients.get(socket.id);
-    if (client && data.deviceName && data.deviceName.trim()) {
-      const oldName = client.deviceName;
-      client.deviceName = data.deviceName.trim();
-      clients.set(socket.id, client);
-      useCustomName = true;
-      
-      // Send updated device info to the client
-      socket.emit('device-info', {
-        deviceId: client.deviceId,
-        deviceName: client.deviceName
-      });
-      
-      // Update peers list for this client
-      const roomClients = Array.from(rooms.get(client.roomId) || [])
-        .filter(id => id !== socket.id)
-        .map(id => {
-          const peer = clients.get(id);
-          return peer ? {
-            deviceId: peer.deviceId,
-            deviceName: peer.deviceName,
-            socketId: id
-          } : null;
-        })
-        .filter(Boolean);
-      
-      socket.emit('peers-list', roomClients);
-      
-      // Notify other clients about the name change (if name actually changed)
-      if (oldName !== client.deviceName) {
-        socket.to(client.roomId).emit('peer-name-changed', {
-          socketId: socket.id,
-          deviceName: client.deviceName,
-          oldName: oldName
-        });
-        
-        // Also update their peers lists
-        socket.to(client.roomId).emit('peer-joined', {
-          deviceId: client.deviceId,
-          deviceName: client.deviceName,
-          socketId: socket.id
-        });
-      }
-      
-      console.log(`Device ${socket.id} set custom name: "${client.deviceName}" (was: "${oldName}")`);
-    }
-  });
   
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
@@ -225,13 +215,21 @@ io.on('connection', (socket) => {
     if (client && rooms.has(client.roomId)) {
       rooms.get(client.roomId).delete(socket.id);
       
-      socket.to(client.roomId).emit('peer-left', {
-        deviceId: client.deviceId,
-        socketId: socket.id
-      });
+      // Only broadcast peer-left if client had device info
+      if (client.deviceId) {
+        socket.to(client.roomId).emit('peer-left', {
+          deviceId: client.deviceId,
+          socketId: socket.id
+        });
+      }
       
       if (rooms.get(client.roomId).size === 0) {
         rooms.delete(client.roomId);
+      }
+      
+      // Clean up persistent client mapping
+      if (client.clientId) {
+        persistentClients.delete(client.clientId);
       }
     }
     

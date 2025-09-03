@@ -7,11 +7,21 @@ export interface Peer {
   deviceId: string;
   deviceName: string;
   socketId: string;
+  clientId: string;
 }
 
 export interface DeviceInfo {
   deviceId: string;
   deviceName: string;
+}
+
+export interface Message {
+  id: string;
+  text: string;
+  timestamp: number;
+  fromSocketId: string;
+  fromName: string;
+  isOwn: boolean;
 }
 
 interface WebRTCConnection {
@@ -29,6 +39,102 @@ export const useWebRTC = () => {
   const [incomingFileRequest, setIncomingFileRequest] = useState<{from: string, fromName: string, fileName: string, fileSize: number, socketId: string} | null>(null);
   const [incomingBatchRequest, setIncomingBatchRequest] = useState<{from: string, fromName: string, files: {fileName: string, fileSize: number}[], socketId: string, batchId: string} | null>(null);
   const [transferProgress, setTransferProgress] = useState<{socketId: string, fileName: string, progress: number, type: 'sending' | 'receiving'} | null>(null);
+  const [messages, setMessages] = useState<Map<string, Message[]>>(new Map());
+  const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map());
+  const messageIdCounter = useRef(0);
+  const [disconnectedPeers, setDisconnectedPeers] = useState<Map<string, { peer: Peer, disconnectedAt: number }>>(new Map());
+  const disconnectionTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Generate unique message ID
+  const generateMessageId = useCallback(() => {
+    messageIdCounter.current += 1;
+    return `msg_${Date.now()}_${messageIdCounter.current}_${Math.random().toString(36).substr(2, 6)}`;
+  }, []);
+
+  // Clear all chat data (for debugging)
+  const clearAllChatData = useCallback(() => {
+    const clientId = localStorage.getItem('gavadrop-client-id');
+    if (clientId) {
+      localStorage.removeItem(`gavadrop-messages-${clientId}`);
+      localStorage.removeItem(`gavadrop-unread-${clientId}`);
+      setMessages(new Map());
+      setUnreadCounts(new Map());
+      messageIdCounter.current = 0;
+      console.log('Cleared all chat data');
+    }
+  }, []);
+
+  // Load messages and unread counts from localStorage on component mount
+  useEffect(() => {
+    const clientId = localStorage.getItem('gavadrop-client-id');
+    if (clientId) {
+      // Load messages
+      const savedMessages = localStorage.getItem(`gavadrop-messages-${clientId}`);
+      if (savedMessages) {
+        try {
+          const parsedMessages = JSON.parse(savedMessages);
+          const messageMap = new Map();
+          Object.entries(parsedMessages).forEach(([peerId, msgs]) => {
+            // Filter out messages with old ID format and regenerate IDs for uniqueness
+            const validMessages = (msgs as Message[]).map((msg, index) => ({
+              ...msg,
+              id: `msg_${msg.timestamp}_${index + 1}_${Math.random().toString(36).substr(2, 6)}`
+            }));
+            messageMap.set(peerId, validMessages);
+          });
+          setMessages(messageMap);
+        } catch (error) {
+          console.error('Error loading saved messages:', error);
+          // Clear corrupted data
+          localStorage.removeItem(`gavadrop-messages-${clientId}`);
+        }
+      }
+
+      // Load unread counts
+      const savedUnreadCounts = localStorage.getItem(`gavadrop-unread-${clientId}`);
+      if (savedUnreadCounts) {
+        try {
+          const parsedUnreadCounts = JSON.parse(savedUnreadCounts);
+          const unreadMap = new Map();
+          Object.entries(parsedUnreadCounts).forEach(([peerId, count]) => {
+            if (typeof count === 'number' && count > 0) {
+              unreadMap.set(peerId, count);
+            }
+          });
+          setUnreadCounts(unreadMap);
+        } catch (error) {
+          console.error('Error loading saved unread counts:', error);
+          localStorage.removeItem(`gavadrop-unread-${clientId}`);
+        }
+      }
+    }
+  }, []);
+
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    const clientId = localStorage.getItem('gavadrop-client-id');
+    if (clientId && messages.size > 0) {
+      const messagesToSave: { [key: string]: Message[] } = {};
+      messages.forEach((msgs, peerId) => {
+        messagesToSave[peerId] = msgs;
+      });
+      localStorage.setItem(`gavadrop-messages-${clientId}`, JSON.stringify(messagesToSave));
+    }
+  }, [messages]);
+
+  // Save unread counts to localStorage whenever they change
+  useEffect(() => {
+    const clientId = localStorage.getItem('gavadrop-client-id');
+    if (clientId) {
+      const unreadCountsToSave: { [key: string]: number } = {};
+      unreadCounts.forEach((count, peerId) => {
+        if (count > 0) {
+          unreadCountsToSave[peerId] = count;
+        }
+      });
+      localStorage.setItem(`gavadrop-unread-${clientId}`, JSON.stringify(unreadCountsToSave));
+    }
+  }, [unreadCounts]);
 
   const acceptFile = useCallback((socketId: string) => {
     if (socket) {
@@ -65,6 +171,77 @@ export const useWebRTC = () => {
       socket.emit('change-device-name', { newName: newName.trim() });
     }
   }, [socket]);
+
+  const sendMessage = useCallback(async (text: string, targetSocketId: string) => {
+    if (!socket || !text.trim()) return;
+
+    console.log('sendMessage called:', { text, targetSocketId, peers });
+
+    const targetPeer = peers.find(p => p.socketId === targetSocketId);
+    console.log('targetPeer found:', targetPeer);
+    
+    if (!targetPeer) {
+      console.error('No target peer found for socketId:', targetSocketId);
+      return;
+    }
+
+    if (!targetPeer.clientId) {
+      console.error('Target peer has no clientId:', targetPeer);
+      return;
+    }
+
+    const message: Message = {
+      id: generateMessageId(),
+      text: text.trim(),
+      timestamp: Date.now(),
+      fromSocketId: socket.id || '',
+      fromName: deviceInfo?.deviceName || 'You',
+      isOwn: true
+    };
+
+    console.log('Sending message:', message, 'to clientId:', targetPeer.clientId);
+
+    // Add to local messages immediately using clientId as key
+    setMessages(prev => {
+      const newMap = new Map(prev);
+      const chatMessages = newMap.get(targetPeer.clientId) || [];
+      newMap.set(targetPeer.clientId, [...chatMessages, message]);
+      console.log('Updated messages map:', newMap);
+      return newMap;
+    });
+
+    // Send via WebRTC data channel if available, otherwise via socket
+    const connection = connections.current.get(targetSocketId);
+    if (connection?.dataChannel && connection.dataChannel.readyState === 'open') {
+      connection.dataChannel.send(JSON.stringify({
+        type: 'chat-message',
+        message: {
+          ...message,
+          isOwn: false // For the receiver
+        }
+      }));
+    } else {
+      // Fallback to socket
+      socket.emit('chat-message', {
+        target: targetSocketId,
+        message: {
+          ...message,
+          isOwn: false
+        }
+      });
+    }
+  }, [socket, deviceInfo, peers, generateMessageId]);
+
+  const markMessagesAsRead = useCallback((socketId: string) => {
+    const peer = peers.find(p => p.socketId === socketId);
+    if (peer) {
+      setUnreadCounts(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(peer.clientId);
+        return newMap;
+      });
+    }
+  }, [peers]);
 
   const sendFile = useCallback(async (file: File, targetSocketId: string) => {
     console.log('sendFile called for:', file.name, 'to:', targetSocketId);
@@ -287,13 +464,21 @@ export const useWebRTC = () => {
   useEffect(() => {
     const socketInstance = io('http://localhost:3002');
     
-    // Send saved device name on connection
-    const savedName = localStorage.getItem('gavadrop-device-name');
-    if (savedName) {
-      socketInstance.on('connect', () => {
-        socketInstance.emit('set-device-name', { deviceName: savedName });
-      });
+    // Get or create persistent client ID
+    let clientId = localStorage.getItem('gavadrop-client-id');
+    if (!clientId) {
+      clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('gavadrop-client-id', clientId);
     }
+    
+    // Send saved device name and client ID on connection
+    const savedName = localStorage.getItem('gavadrop-device-name');
+    socketInstance.on('connect', () => {
+      socketInstance.emit('client-init', { 
+        clientId,
+        deviceName: savedName || null 
+      });
+    });
     
     const handleWebRTCOffer = async (data: { offer: RTCSessionDescriptionInit, from: string }) => {
       if (connections.current.has(data.from)) {
@@ -327,7 +512,44 @@ export const useWebRTC = () => {
           if (typeof event.data === 'string') {
             const message = JSON.parse(event.data);
             
-            if (message.type === 'file-info') {
+            if (message.type === 'chat-message') {
+              console.log('Received chat message via WebRTC:', message);
+              const chatMessage = message.message;
+              
+              // Use a callback to get fresh peers state
+              setPeers(currentPeers => {
+                const fromPeer = currentPeers.find(p => p.socketId === data.from);
+                console.log('fromPeer found for WebRTC message:', fromPeer, 'socketId:', data.from, 'currentPeers:', currentPeers);
+                
+                if (fromPeer && fromPeer.clientId) {
+                  console.log('Adding message to clientId:', fromPeer.clientId);
+                  setMessages(prev => {
+                    const newMap = new Map(prev);
+                    const chatMessages = newMap.get(fromPeer.clientId) || [];
+                    // Ensure received message has unique ID
+                    const messageWithUniqueId = {
+                      ...chatMessage,
+                      id: `msg_${chatMessage.timestamp}_webrtc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+                    };
+                    newMap.set(fromPeer.clientId, [...chatMessages, messageWithUniqueId]);
+                    console.log('Updated messages via WebRTC:', newMap);
+                    return newMap;
+                  });
+                  
+                  // Update unread count using clientId
+                  setUnreadCounts(prev => {
+                    const newMap = new Map(prev);
+                    const currentCount = newMap.get(fromPeer.clientId) || 0;
+                    newMap.set(fromPeer.clientId, currentCount + 1);
+                    return newMap;
+                  });
+                } else {
+                  console.error('Could not find fromPeer with clientId for WebRTC message:', data.from, currentPeers);
+                }
+                
+                return currentPeers; // Return unchanged peers
+              });
+            } else if (message.type === 'file-info') {
               fileName = message.fileName;
               expectedSize = message.fileSize;
               receivedBuffer = [];
@@ -415,10 +637,31 @@ export const useWebRTC = () => {
     });
 
     socketInstance.on('peers-list', (peersList: Peer[]) => {
+      console.log('Received peers-list:', peersList);
       setPeers(peersList);
     });
 
     socketInstance.on('peer-joined', (peer: Peer) => {
+      console.log('Peer joined:', peer);
+      
+      // Cancel disconnection timer if this peer was disconnected
+      const existingTimer = disconnectionTimers.current.get(peer.clientId);
+      if (existingTimer) {
+        console.log('Peer reconnected, cancelling disconnection timer:', peer.deviceName, peer.clientId);
+        clearTimeout(existingTimer);
+        disconnectionTimers.current.delete(peer.clientId);
+        
+        // Remove from disconnected peers AFTER we add to active peers to avoid gaps
+        setTimeout(() => {
+          setDisconnectedPeers(prev => {
+            const newDisconnected = new Map(prev);
+            newDisconnected.delete(peer.clientId);
+            console.log('Removed reconnected peer from disconnected peers:', peer.deviceName);
+            return newDisconnected;
+          });
+        }, 10); // Small delay to ensure peers is updated first
+      }
+      
       setPeers(prev => {
         // Check if peer already exists to avoid duplicates
         const existingIndex = prev.findIndex(p => p.socketId === peer.socketId);
@@ -426,15 +669,49 @@ export const useWebRTC = () => {
           // Update existing peer
           const updated = [...prev];
           updated[existingIndex] = peer;
+          console.log('Updated existing peer:', updated);
           return updated;
         }
         // Add new peer
-        return [...prev, peer];
+        const newPeers = [...prev, peer];
+        console.log('Added new peer:', newPeers);
+        return newPeers;
       });
     });
 
     socketInstance.on('peer-left', (data: { socketId: string }) => {
-      setPeers(prev => prev.filter(p => p.socketId !== data.socketId));
+      setPeers(prev => {
+        const leavingPeer = prev.find(p => p.socketId === data.socketId);
+        if (leavingPeer) {
+          // Start 4-second grace period
+          console.log('Starting 4-second grace period for peer:', leavingPeer.deviceName, leavingPeer.clientId);
+          setDisconnectedPeers(prevDisconnected => {
+            const newDisconnected = new Map(prevDisconnected);
+            newDisconnected.set(leavingPeer.clientId, {
+              peer: leavingPeer,
+              disconnectedAt: Date.now()
+            });
+            console.log('Added to disconnected peers:', newDisconnected);
+            return newDisconnected;
+          });
+
+          // Set timer to remove after 4 seconds if not reconnected
+          const timerId = setTimeout(() => {
+            console.log('Grace period expired for peer:', leavingPeer.deviceName, leavingPeer.clientId);
+            setDisconnectedPeers(prevDisconnected => {
+              const newDisconnected = new Map(prevDisconnected);
+              newDisconnected.delete(leavingPeer.clientId);
+              console.log('Removed from disconnected peers after 4s:', newDisconnected);
+              return newDisconnected;
+            });
+            disconnectionTimers.current.delete(leavingPeer.clientId);
+          }, 4000);
+          
+          disconnectionTimers.current.set(leavingPeer.clientId, timerId);
+        }
+        
+        return prev.filter(p => p.socketId !== data.socketId);
+      });
       connections.current.delete(data.socketId);
     });
 
@@ -499,9 +776,14 @@ export const useWebRTC = () => {
       });
     });
 
+
     setSocket(socketInstance);
 
     return () => {
+      // Clear all disconnection timers
+      disconnectionTimers.current.forEach(timer => clearTimeout(timer));
+      disconnectionTimers.current.clear();
+      
       socketInstance.disconnect();
       connections.current.forEach(conn => {
         conn.peerConnection.close();
@@ -510,12 +792,61 @@ export const useWebRTC = () => {
     };
   }, []);
 
+  // Separate useEffect for chat message listeners to ensure fresh peers closure
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleChatMessage = (data: { message: Message, from: string }) => {
+      console.log('Received chat message via Socket:', data, 'current peers:', peers);
+      const fromPeer = peers.find(p => p.socketId === data.from);
+      console.log('fromPeer found for Socket message:', fromPeer, 'socketId:', data.from);
+      
+      if (fromPeer && fromPeer.clientId) {
+        console.log('Adding socket message to clientId:', fromPeer.clientId);
+        setMessages(prev => {
+          const newMap = new Map(prev);
+          const chatMessages = newMap.get(fromPeer.clientId) || [];
+          // Ensure received message has unique ID
+          const messageWithUniqueId = {
+            ...data.message,
+            id: `msg_${data.message.timestamp}_recv_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+          };
+          newMap.set(fromPeer.clientId, [...chatMessages, messageWithUniqueId]);
+          console.log('Updated messages via Socket:', newMap);
+          return newMap;
+        });
+        
+        // Update unread count using clientId
+        setUnreadCounts(prev => {
+          const newMap = new Map(prev);
+          const currentCount = newMap.get(fromPeer.clientId) || 0;
+          newMap.set(fromPeer.clientId, currentCount + 1);
+          return newMap;
+        });
+      } else {
+        console.error('Could not find fromPeer with clientId for Socket message:', data.from, peers);
+      }
+    };
+
+    socket.on('chat-message', handleChatMessage);
+
+    return () => {
+      socket.off('chat-message', handleChatMessage);
+    };
+  }, [socket, peers]);
+
   return {
     peers,
     deviceInfo,
     isConnected,
     sendFile,
     sendBatchFiles,
+    sendMessage,
+    messages,
+    unreadCounts,
+    markMessagesAsRead,
+    clearAllChatData,
+    disconnectedPeers,
     incomingFile,
     incomingFileRequest,
     incomingBatchRequest,

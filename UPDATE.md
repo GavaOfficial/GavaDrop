@@ -1,6 +1,85 @@
 # GavaDrop - Update History
 
-## Version 0.8.5 (Current)
+## Version 0.9.0 (Current)
+
+### Real-Time Chat System
+- **Complete P2P chat implementation** with persistent message history
+  - WebRTC-based direct messaging with Socket.IO fallback for reliability
+  - Real-time message delivery with unique ID generation system
+  - Message persistence using localStorage with clientId-based storage
+  - Auto-clearing notifications when opening chat with message sender
+  - Inline chat panel with slide-out animation and fixed positioning
+  - Message timestamp display and proper message bubble styling
+
+### Advanced Notification System
+- **Persistent unread message notifications** across page refreshes
+  - Red badge counters on devices with unread messages in sidebar
+  - Automatic notification clearing when selecting devices with messages
+  - Cross-session persistence using localStorage with client-specific keys
+  - Smart notification management tied to persistent client IDs
+
+### Intelligent Disconnection Management
+- **4-second grace period system** for temporary disconnections
+  - Devices appear transparent/orange during disconnection period
+  - Chat remains open during grace period with disabled messaging
+  - File transfer disabled during disconnection with visual feedback
+  - Automatic cleanup after grace period expires
+  - Smart timer management with proper cleanup on reconnection
+
+### Advanced Auto-Reconnection System
+- **Automatic device reselection** after disconnection/reconnection
+  - Persistent clientId tracking across socket reconnections
+  - Smart peer matching using clientId instead of socketId
+  - Seamless state preservation during network interruptions
+  - Automatic chat reopening for previously selected devices
+
+### Complete Session Persistence
+- **Full UI state restoration** after page refresh
+  - Selected device persistence with automatic reselection on reconnection
+  - Chat input text preservation during typing sessions
+  - Chat panel state (open/closed) persistence across refreshes
+  - File selection metadata tracking with user notification system
+  - Session restoration notifications with multilingual support
+
+### Enhanced UI Layout & UX
+- **Fixed-height page layout** with internal scrolling
+  - Non-scrollable page root with h-screen overflow-hidden design
+  - Internal scrolling for sidebar device list and chat messages
+  - File list area with proper overflow handling
+  - Chat panel with fixed height and internal message scrolling
+  - Improved visual hierarchy and space utilization
+
+### Robust Error Handling & Recovery
+- **Comprehensive error management** for chat and persistence
+  - Graceful handling of localStorage corruption with automatic cleanup
+  - Safe message ID generation with collision prevention
+  - Proper React hook dependency management to prevent memory leaks
+  - Enhanced useEffect cleanup for disconnection timers
+
+### Technical Architecture Improvements
+- **Advanced React patterns** for state management and persistence
+  - Complex useEffect chains for disconnection/reconnection handling
+  - Proper state loading flags to prevent premature persistence triggers
+  - Enhanced message uniqueness system with timestamp + counter + random
+  - Optimized re-rendering with proper dependency arrays and useCallback usage
+
+### Multilingual Enhancements
+- **Extended translation system** for new chat and persistence features
+  - Session restoration messages in both Italian and English
+  - File persistence notifications with proper pluralization
+  - Chat-specific UI text and placeholder translations
+  - Comprehensive toast notification translations
+
+### Server-Side Chat Integration
+- **Enhanced Socket.IO server** with chat message routing
+  - chat-message event handling with proper message forwarding
+  - Maintains existing file transfer and signaling functionality
+  - Efficient message routing between connected peers
+  - Backward compatibility with existing WebRTC signaling
+
+## Version 0.8.5
+
+### Multi-Language Support System
 
 ### Multi-Language Support System
 - **Complete internationalization (i18n) implementation** with Italian and English

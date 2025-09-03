@@ -77,10 +77,20 @@ const translations = {
     "toast.fileTimeout": "Timeout: il file non è stato accettato in tempo",
     "toast.sendError": "Errore nell'invio dei file",
     "toast.nameUpdated": "Nome dispositivo aggiornato!",
+    "toast.sessionRestored": "Sessione ripristinata - lo stato della chat è stato recuperato",
+    "toast.filesWereSelected": "Avevi selezionato",
+    "toast.pleaseReselectFiles": "Riseleziona i tuoi file per continuare.",
     
     // Languages
     "lang.italian": "Italiano",
-    "lang.english": "English"
+    "lang.english": "English",
+    
+    // Chat
+    "chat.messages": "messaggi",
+    "chat.noMessages": "Nessun messaggio",
+    "chat.startConversation": "Inizia una conversazione",
+    "chat.typeMessage": "Scrivi un messaggio...",
+    "chat.title": "Chat"
   },
   en: {
     // App
@@ -148,10 +158,20 @@ const translations = {
     "toast.fileTimeout": "Timeout: file was not accepted in time",
     "toast.sendError": "Error sending files",
     "toast.nameUpdated": "Device name updated!",
+    "toast.sessionRestored": "Session restored - your chat state has been recovered",
+    "toast.filesWereSelected": "You had selected",
+    "toast.pleaseReselectFiles": "Please reselect your files to continue.",
     
     // Languages
     "lang.italian": "Italiano",
-    "lang.english": "English"
+    "lang.english": "English",
+    
+    // Chat
+    "chat.messages": "messages",
+    "chat.noMessages": "No messages",
+    "chat.startConversation": "Start a conversation",
+    "chat.typeMessage": "Type a message...",
+    "chat.title": "Chat"
   }
 }
 
