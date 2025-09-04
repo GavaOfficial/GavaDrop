@@ -1,6 +1,68 @@
 # GavaDrop - Update History
 
-## Version 0.9.0 (Current)
+## Version 0.9.1 (Current)
+
+### Advanced Folder Transfer System
+- **Complete folder transfer implementation** with ZIP compression
+  - Drag & drop entire folders with automatic detection and grouping
+  - Folder selection via webkitdirectory API with proper file structure preservation
+  - Smart UI display showing folders as single amber-colored items instead of expanded file lists
+  - Automatic ZIP compression using JSZip library when sending folders
+  - Folder metadata display with file count and total size information
+  - Combined file and folder queue management with unified send button
+
+### Enhanced File Preview System
+- **Comprehensive file preview components** for sender and receiver interfaces
+  - FilePreview component with actual image previews and fallback icons
+  - FilePreviewMetadata component with file type detection and appropriate icons
+  - Support for images, videos, audio, PDFs, text files, and archives
+  - Color-coded file type indicators with gradient backgrounds
+  - Large preview panel with detailed file information in sender UI
+  - Preview integration in receiver popups for both single and batch transfers
+
+### End-to-End Encryption System
+- **Optional AES-GCM encryption** with password-based key derivation
+  - Toggle-based encryption enabling with visual feedback (Lock/Unlock icons)
+  - Optional password field with clear user guidance
+  - PBKDF2 key derivation with 100,000 iterations and SHA-256 for security
+  - Automatic .encrypted file extension handling
+  - Smart decryption dialog with 3-attempt limit system
+  - Encrypted file detection and automatic decryption flow
+  - Support for both encrypted files and folders (ZIP encryption)
+
+### Improved User Interface & Experience
+- **Enhanced file selection workflow** with better event handling
+  - Fixed double file selector opening issues with proper event propagation
+  - Improved folder selection state management using refs for immediate control
+  - Properly centered file/folder selection buttons with justify-center layout
+  - Smooth progress bar animations with slide-down completion effect
+  - Better visual feedback for encrypted vs unencrypted transfers
+  - Enhanced drag & drop visual states with folder support
+
+### Advanced Progress & Animation System
+- **Sophisticated transfer progress management**
+  - Slide-down animation for completed progress bars using CSS transforms
+  - Coordinated timing between progress completion and UI cleanup
+  - Smooth transitions for progress bar hiding with opacity and scale effects
+  - Enhanced visual feedback during encryption/decryption processes
+
+### Technical Architecture Improvements
+- **Robust file handling and type safety**
+  - Proper TypeScript interfaces for folder structures and file metadata
+  - Enhanced error handling for encryption/decryption failures
+  - Clean separation between file utilities and UI components
+  - Proper memory management for file operations and ZIP generation
+  - Optimized file grouping algorithms for folder detection
+
+### Security & Encryption Features
+- **Professional-grade encryption implementation**
+  - AES-GCM 256-bit encryption with cryptographically secure random IV generation
+  - Salt-based key derivation preventing rainbow table attacks
+  - Secure file format with embedded salt, IV, and encrypted data
+  - Multiple decryption attempt handling with automatic cleanup
+  - Clear security indicators and user guidance throughout the process
+
+## Version 0.9.0
 
 ### Real-Time Chat System
 - **Complete P2P chat implementation** with persistent message history

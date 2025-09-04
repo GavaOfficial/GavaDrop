@@ -1,18 +1,21 @@
 # GavaDrop
 
-Un'applicazione moderna per la condivisione di file nella rete locale tramite WebRTC con chat integrata.
+Un'applicazione moderna per la condivisione di file e cartelle nella rete locale tramite WebRTC con chat integrata e crittografia end-to-end.
 
 ## Caratteristiche
 
 - **Trasferimento file peer-to-peer** senza server
+- **Trasferimento cartelle complete** con compressione ZIP automatica
+- **Anteprime file integrate** - Visualizza immagini e icone per tutti i tipi di file
+- **Crittografia end-to-end opzionale** - AES-GCM 256-bit con derivazione PBKDF2
 - **Chat in tempo reale** tra dispositivi connessi
 - **Notifiche messaggi non letti** persistenti
 - **Persistenza di sessione** - ripristina lo stato dopo refresh
 - **Gestione disconnessione** con grazia period di 4 secondi
 - **Auto-riconnessione** dispositivi con selezione automatica
 - Funziona solo nella rete locale per sicurezza
-- Barre di progresso sincronizzate in tempo reale
-- Sistema di accettazione/rifiuto file
+- Barre di progresso sincronizzate in tempo reale con animazioni fluide
+- Sistema di accettazione/rifiuto file e cartelle
 - Nomi dispositivi personalizzabili
 - **Supporto multilingue** - Italiano/Inglese con rilevamento automatico
 - **Tema scuro/chiaro** - Con rilevamento preferenze sistema
@@ -26,7 +29,11 @@ Un'applicazione moderna per la condivisione di file nella rete locale tramite We
 - **Seleziona dispositivo**: Clicca su un dispositivo dalla sidebar sinistra
 - **Chat istantanea**: Apri la chat cliccando il pulsante chat o selezionando un dispositivo con messaggi
 - **Invia file**: Trascina file o clicca "Seleziona File"
-- **File multipli**: Aggiungi più file alla coda prima di inviare
+- **Invia cartelle**: Trascina cartelle intere o clicca "Seleziona Cartella" - vengono compresse automaticamente in ZIP
+- **Anteprime file**: Visualizza anteprime delle immagini e icone appropriate per ogni tipo di file
+- **Crittografia**: Abilita il toggle "Crittografia End-to-End" e inserisci una password opzionale
+- **File criptati**: I file criptati vengono scaricati con una password (3 tentativi massimi)
+- **File multipli**: Aggiungi più file e cartelle alla coda prima di inviare
 - **Accetta/Rifiuta**: Rispondi alle richieste di trasferimento (popup unificato per file multipli)
 - **Notifiche messaggi**: Vedi i badge rossi per messaggi non letti
 - **Persistenza stato**: L'app ricorda dispositivo selezionato, chat aperta e testo in corso

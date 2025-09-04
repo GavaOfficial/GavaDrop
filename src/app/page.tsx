@@ -16,7 +16,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { Upload, Share2, Wifi, Smartphone, Monitor, Tablet, FileDown, FileUp, Edit3, Check, X, File, Trash2, Send, MessageCircle } from "lucide-react";
+import { Upload, Share2, Wifi, Smartphone, Monitor, Tablet, FileDown, FileUp, Edit3, Check, X, File, Trash2, Send, MessageCircle, Folder, FolderOpen, Lock, Unlock } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useWebRTC } from "@/hooks/useWebRTC";
@@ -24,6 +24,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/language-toggle";
 import { useLanguage } from "@/contexts/language-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FilePreview } from "@/components/file-preview";
+import { FilePreviewMetadata } from "@/components/file-preview-metadata";
+import { encryptFile, decryptFile } from "@/utils/encryption";
+import { groupFilesByFolder, compressFolder, getItemIcon, FolderInfo } from "@/utils/folder-utils";
 
 export default function Home() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -31,11 +35,23 @@ export default function Home() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<import('@/utils/folder-utils').FolderInfo[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSelectingFolder, setIsSelectingFolder] = useState(false);
+  const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(null);
+  const [encryptionPassword, setEncryptionPassword] = useState("");
+  const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
+  const [showDecryptDialog, setShowDecryptDialog] = useState(false);
+  const [decryptPassword, setDecryptPassword] = useState("");
+  const [decryptAttempts, setDecryptAttempts] = useState(0);
+  const [pendingEncryptedFile, setPendingEncryptedFile] = useState<{data: ArrayBuffer, fileName: string} | null>(null);
+  const [isProgressHiding, setIsProgressHiding] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [lastSelectedClientId, setLastSelectedClientId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const isSelectingFolderRef = useRef<boolean>(false);
   const [isStateLoaded, setIsStateLoaded] = useState(false);
   
   const { t } = useLanguage();
@@ -60,7 +76,34 @@ export default function Home() {
     acceptBatchFiles,
     rejectBatchFiles,
     changeDeviceName 
-  } = useWebRTC();
+  } = useWebRTC(
+    // Callback per gestire file ricevuti
+    useCallback((data: ArrayBuffer, fileName: string, relativePath: string) => {
+      // Controlla se il file è criptato (estensione .encrypted)
+      if (fileName.endsWith('.encrypted')) {
+        const originalFileName = relativePath.replace(/\.encrypted$/, '');
+        setPendingEncryptedFile({ data, fileName: originalFileName });
+        setDecryptAttempts(0); // Reset tentativi per nuovo file
+        setDecryptPassword(""); // Reset password
+        setShowDecryptDialog(true);
+        return false; // Non scaricare automaticamente
+      }
+      
+      // File normale - scarica direttamente
+      const blob = new Blob([data]);
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = relativePath;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      return true; // File gestito
+    }, [])
+  );
 
   // Clear file metadata when files are successfully sent or cleared
   const clearSavedFiles = useCallback(() => {
@@ -70,28 +113,106 @@ export default function Home() {
     }
   }, []);
 
+  const handleDecryptFile = useCallback(async () => {
+    if (!pendingEncryptedFile || !decryptPassword.trim()) {
+      toast.error("Password richiesta per la decrittografia");
+      return;
+    }
+
+    try {
+      const { decryptedFile, success } = await decryptFile(
+        pendingEncryptedFile.data, 
+        decryptPassword.trim()
+      );
+
+      if (success) {
+        const url = URL.createObjectURL(decryptedFile);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = pendingEncryptedFile.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast.success("File decriptato e scaricato con successo!");
+        setShowDecryptDialog(false);
+        setDecryptPassword("");
+        setDecryptAttempts(0);
+        setPendingEncryptedFile(null);
+      } else {
+        const newAttempts = decryptAttempts + 1;
+        setDecryptAttempts(newAttempts);
+        setDecryptPassword("");
+        
+        if (newAttempts >= 3) {
+          toast.error("Troppi tentativi errati. File scartato.");
+          setShowDecryptDialog(false);
+          setDecryptAttempts(0);
+          setPendingEncryptedFile(null);
+        } else {
+          toast.error(`Password errata. Rimangono ${3 - newAttempts} tentativ${3 - newAttempts === 1 ? 'o' : 'i'}.`);
+        }
+      }
+    } catch (error) {
+      console.error('Errore nella decrittografia:', error);
+      const newAttempts = decryptAttempts + 1;
+      setDecryptAttempts(newAttempts);
+      setDecryptPassword("");
+      
+      if (newAttempts >= 3) {
+        toast.error("Troppi tentativi errati. File scartato.");
+        setShowDecryptDialog(false);
+        setDecryptAttempts(0);
+        setPendingEncryptedFile(null);
+      } else {
+        toast.error(`Errore nella decrittografia. Rimangono ${3 - newAttempts} tentativ${3 - newAttempts === 1 ? 'o' : 'i'}.`);
+      }
+    }
+  }, [pendingEncryptedFile, decryptPassword, decryptAttempts]);
+
   const handleFileSend = useCallback(async () => {
-    console.log('handleFileSend called with:', selectedFiles.length, 'files, selectedPeer:', selectedPeer);
-    if (selectedFiles.length === 0 || !selectedPeer) {
-      console.log('Early return: no files or no peer selected');
+    console.log('handleFileSend called with:', selectedFiles.length, 'files,', selectedFolders.length, 'folders, selectedPeer:', selectedPeer);
+    if (selectedFiles.length === 0 && selectedFolders.length === 0 || !selectedPeer) {
+      console.log('Early return: no items or no peer selected');
       return;
     }
 
     setIsSending(true);
     
     try {
-      if (selectedFiles.length === 1) {
-        // Single file - use normal send
-        await sendFile(selectedFiles[0], selectedPeer);
-        toast.success(`${selectedFiles[0].name} ${t("toast.sentSuccess")}`);
+      // Comprimi le cartelle in file ZIP
+      const compressedFolders = await Promise.all(
+        selectedFolders.map(async (folder) => await compressFolder(folder))
+      );
+
+      // Combina file singoli e cartelle compresse
+      const allFiles = [...selectedFiles, ...compressedFolders];
+
+      // Cripta i file se necessario
+      const filesToSend = await Promise.all(
+        allFiles.map(async (file) => {
+          if (isEncryptionEnabled) {
+            const { encryptedFile } = await encryptFile(file, encryptionPassword || undefined);
+            return encryptedFile;
+          }
+          return file;
+        })
+      );
+
+      if (filesToSend.length === 1) {
+        // Single item - use normal send
+        await sendFile(filesToSend[0], selectedPeer);
+        toast.success(`${allFiles[0].name} ${t("toast.sentSuccess")} ${isEncryptionEnabled ? '(criptato)' : ''}`);
       } else {
-        // Multiple files - use batch send
-        await sendBatchFiles(selectedFiles, selectedPeer);
-        toast.success(`${selectedFiles.length} ${t("toast.sentSuccessMultiple")}`);
+        // Multiple items - use batch send
+        await sendBatchFiles(filesToSend, selectedPeer);
+        toast.success(`${filesToSend.length} elementi ${t("toast.sentSuccessMultiple")} ${isEncryptionEnabled ? '(criptati)' : ''}`);
       }
       
-      // Clear selected files only after successful sending
+      // Clear selected items only after successful sending
       setSelectedFiles([]);
+      setSelectedFolders([]);
       clearSavedFiles();
     } catch (error: unknown) {
       const message = (error as Error).message;
@@ -108,12 +229,13 @@ export default function Home() {
       }
       console.error('Send error:', error);
       
-      // Clear files even on error to reset the UI
+      // Clear items even on error to reset the UI
       setSelectedFiles([]);
+      setSelectedFolders([]);
     } finally {
       setIsSending(false);
     }
-  }, [selectedFiles, selectedPeer, sendFile, sendBatchFiles, clearSavedFiles, t]);
+  }, [selectedFiles, selectedFolders, selectedPeer, sendFile, sendBatchFiles, clearSavedFiles, t, isEncryptionEnabled, encryptionPassword]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -135,34 +257,85 @@ export default function Home() {
     }
 
     const droppedFiles = Array.from(e.dataTransfer.files);
-    setSelectedFiles(prev => [...prev, ...droppedFiles]);
-    toast.success(`${droppedFiles.length} ${t("toast.filesAdded")}`);
-  }, [selectedPeer]);
+    
+    // Raggruppa i file per cartelle
+    const { folders, singleFiles } = groupFilesByFolder(droppedFiles);
+    
+    setSelectedFiles(prev => [...prev, ...singleFiles]);
+    setSelectedFolders(prev => [...prev, ...folders]);
+    
+    const message = folders.length > 0 
+      ? `${folders.length} cartell${folders.length === 1 ? 'a' : 'e'} e ${singleFiles.length} file aggiunti`
+      : `${singleFiles.length} file aggiunti`;
+    
+    toast.success(message);
+  }, [selectedPeer, t]);
 
   const handleFileSelect = useCallback(() => {
     if (!selectedPeer) {
       toast.error(t("toast.selectDeviceFirst"));
       return;
     }
+    setIsSelectingFolder(false);
     fileInputRef.current?.click();
+  }, [selectedPeer, t]);
+
+  const handleFolderSelect = useCallback(() => {
+    if (!selectedPeer) {
+      toast.error(t("toast.selectDeviceFirst"));
+      return;
+    }
+    setIsSelectingFolder(true);
+    isSelectingFolderRef.current = true;
+    
+    folderInputRef.current?.click();
+    
+    // Reset state after a delay in case user cancels dialog
+    setTimeout(() => {
+      setIsSelectingFolder(false);
+      isSelectingFolderRef.current = false;
+    }, 500);
   }, [selectedPeer, t]);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || []);
-    setSelectedFiles(prev => [...prev, ...newFiles]);
-    toast.success(`${newFiles.length} ${t("toast.filesAdded")}`);
-    // Reset file input
+    
+    // Raggruppa i file per cartelle
+    const { folders, singleFiles } = groupFilesByFolder(newFiles);
+    
+    setSelectedFiles(prev => [...prev, ...singleFiles]);
+    setSelectedFolders(prev => [...prev, ...folders]);
+    
+    const totalItems = singleFiles.length + folders.length;
+    const message = folders.length > 0 
+      ? `${folders.length} cartell${folders.length === 1 ? 'a' : 'e'} e ${singleFiles.length} file aggiunti`
+      : `${singleFiles.length} file aggiunti`;
+    
+    toast.success(message);
+    
+    // Reset file inputs
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+    }
+    // Reset folder selection state
+    setIsSelectingFolder(false);
+    isSelectingFolderRef.current = false;
   }, [t]);
 
   const removeFile = useCallback((index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const removeFolder = useCallback((index: number) => {
+    setSelectedFolders(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const clearAllFiles = useCallback(() => {
     setSelectedFiles([]);
+    setSelectedFolders([]);
     clearSavedFiles();
   }, [clearSavedFiles]);
 
@@ -371,6 +544,25 @@ export default function Home() {
       }
     }
   }, [selectedPeer, peers, disconnectedPeers, lastSelectedClientId]);
+
+  // Handle progress completion animation
+  useEffect(() => {
+    if (transferProgress && transferProgress.progress >= 100) {
+      // Start hide animation after a short delay to show completion
+      const timer = setTimeout(() => {
+        setIsProgressHiding(true);
+        
+        // Hide the progress completely after animation completes
+        setTimeout(() => {
+          // This will be handled by the useWebRTC hook clearing transferProgress
+        }, 1000); // Animation duration
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setIsProgressHiding(false);
+    }
+  }, [transferProgress]);
 
   // Check if selected peer is temporarily disconnected
   const selectedPeerData = peers.find(p => p.socketId === selectedPeer);
@@ -658,7 +850,7 @@ export default function Home() {
           <div className="flex-1 p-6 flex flex-col gap-6 transition-all duration-500 ease-in-out overflow-hidden">
           {/* File Drop Area */}
           <div
-            className={`${selectedFiles.length > 0 ? 'h-32' : 'flex-1'} relative overflow-hidden border-2 border-dashed rounded-2xl text-center transition-all duration-300 cursor-pointer group ${
+            className={`${(selectedFiles.length > 0 || selectedFolders.length > 0) ? 'h-32' : 'flex-1'} relative overflow-hidden border-2 border-dashed rounded-2xl text-center transition-all duration-300 cursor-pointer group ${
               isDragOver && selectedPeer
                 ? "border-blue-500 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 scale-[1.02] shadow-lg shadow-blue-500/20"
                 : selectedPeer 
@@ -668,7 +860,7 @@ export default function Home() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => selectedPeer && handleFileSelect()}
+            onClick={() => selectedPeer && !isSelectingFolderRef.current && handleFileSelect()}
           >
             {/* Animated Background Pattern */}
             <div className={`absolute inset-0 opacity-5 ${isDragOver && selectedPeer ? 'animate-pulse' : ''}`}>
@@ -676,10 +868,10 @@ export default function Home() {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_70%)]"></div>
             </div>
             {/* Content with relative positioning */}
-            <div className={`${selectedFiles.length > 0 ? 'p-4' : 'p-12'} relative z-10 transition-all duration-300 ${isDragOver && selectedPeer ? 'scale-110' : 'group-hover:scale-105'} flex flex-col items-center justify-center h-full`}>
+            <div className={`${(selectedFiles.length > 0 || selectedFolders.length > 0) ? 'p-4' : 'p-12'} relative z-10 transition-all duration-300 ${isDragOver && selectedPeer ? 'scale-110' : 'group-hover:scale-105'} flex flex-col items-center justify-center h-full`}>
               {/* Animated Upload Icon */}
               <div className="relative mb-4">
-                <Upload className={`${selectedFiles.length > 0 ? 'h-10 w-10' : 'h-20 w-20'} ${
+                <Upload className={`${(selectedFiles.length > 0 || selectedFolders.length > 0) ? 'h-10 w-10' : 'h-20 w-20'} ${
                   selectedPeer ? 'text-blue-500 dark:text-blue-400' : 'text-gray-300'
                 } transition-all duration-300 ${isDragOver && selectedPeer ? 'animate-bounce' : 'group-hover:scale-110'}`} />
                 {isDragOver && selectedPeer && (
@@ -687,7 +879,7 @@ export default function Home() {
                 )}
               </div>
 
-              {selectedFiles.length > 0 ? (
+              {(selectedFiles.length > 0 || selectedFolders.length > 0) ? (
                 <div className="text-center">
                   <h3 className={`font-bold text-lg ${selectedPeer ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-silkscreen)' }}>
                     {t("transfer.addMoreFiles")}
@@ -715,10 +907,33 @@ export default function Home() {
                     </p>
                     
                     {selectedPeer && (
-                      <Button size="lg" className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                        <Upload className="h-5 w-5 mr-2" />
-                        {t("transfer.clickToBrowse")}
-                      </Button>
+                      <div className="flex gap-4 justify-center">
+                        <Button 
+                          size="lg" 
+                          className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleFileSelect();
+                          }}
+                        >
+                          <Upload className="h-5 w-5 mr-2" />
+                          {t("transfer.selectFiles")}
+                        </Button>
+                        <Button 
+                          size="lg" 
+                          variant="outline" 
+                          className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleFolderSelect();
+                          }}
+                        >
+                          <Folder className="h-5 w-5 mr-2" />
+                          {t("transfer.selectFolder")}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </>
@@ -730,25 +945,36 @@ export default function Home() {
                 onChange={handleFileInputChange}
                 className="hidden"
               />
+              <input
+                ref={folderInputRef}
+                type="file"
+                {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
             </div>
           </div>
 
           {/* Selected Files List */}
-          {selectedFiles.length > 0 && (
+          {(selectedFiles.length > 0 || selectedFolders.length > 0) && (
             <div className="flex-1 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 p-6 shadow-xl shadow-blue-500/5 overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between mb-6">
+              {/* Files List Section */}
+              <div className="flex flex-row gap-6 flex-1 overflow-hidden">
+                {/* Left: File List */}
+                <div className="flex-1 flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-3 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
                     <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 dark:from-white dark:to-blue-200 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-silkscreen)' }}>
-                      {t("transfer.queue")} ({selectedFiles.length})
+                      {t("transfer.queue")} ({selectedFiles.length + selectedFolders.length})
                     </h3>
                   </div>
                   <p className="text-sm text-muted-foreground ml-6 font-medium">
                     {isSending 
                       ? `${t("transfer.sendingTo")} ${peers.find(p => p.socketId === selectedPeer)?.deviceName}...`
                       : `${t("transfer.readyToSendTo")} ${peers.find(p => p.socketId === selectedPeer)?.deviceName}`
-                    }
+                    } - {selectedFiles.length + selectedFolders.length} elementi
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -764,7 +990,7 @@ export default function Home() {
                   </Button>
                   <Button
                     onClick={handleFileSend}
-                    disabled={!selectedPeer || selectedFiles.length === 0 || isSending || isSelectedPeerTemporarilyDisconnected}
+                    disabled={!selectedPeer || (selectedFiles.length === 0 && selectedFolders.length === 0) || isSending || isSelectedPeerTemporarilyDisconnected}
                     size="sm"
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:scale-100 font-semibold"
                   >
@@ -776,41 +1002,76 @@ export default function Home() {
                     ) : (
                       <>
                         <Send className="h-4 w-4 mr-2" />
-                        {t("transfer.send")} {selectedFiles.length} {t("transfer.sendFiles")}{selectedFiles.length !== 1 ? 's' : ''}
+                        {t("transfer.send")} {selectedFiles.length + selectedFolders.length} {selectedFiles.length + selectedFolders.length === 1 ? 'elemento' : 'elementi'}
                       </>
                     )}
                   </Button>
                 </div>
               </div>
 
-              {/* File List */}
-              <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar min-h-0">
-                {selectedFiles.map((file, index) => (
+                  {/* Encryption Settings */}
+                  <div className="mb-6 p-4 bg-muted/20 rounded-lg border border-muted">
+                    <div className="flex items-center gap-3 mb-3">
+                      {isEncryptionEnabled ? <Lock className="h-5 w-5 text-green-600" /> : <Unlock className="h-5 w-5 text-gray-400" />}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isEncryptionEnabled}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIsEncryptionEnabled(e.target.checked)}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="font-medium text-sm">Crittografia End-to-End</span>
+                      </label>
+                    </div>
+                    {isEncryptionEnabled && (
+                      <Input
+                        type="password"
+                        placeholder="Password per crittografia (opzionale)"
+                        value={encryptionPassword}
+                        onChange={(e) => setEncryptionPassword(e.target.value)}
+                        className="text-sm"
+                      />
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {isEncryptionEnabled 
+                        ? "I file saranno criptati prima dell'invio. Il destinatario dovrà inserire la stessa password."
+                        : "I file verranno inviati senza crittografia aggiuntiva."
+                      }
+                    </p>
+                  </div>
+
+                  {/* File and Folder List */}
+                  <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                {/* Folders */}
+                {selectedFolders.map((folder, index) => (
                   <div
-                    key={index}
-                    className="group flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50/80 to-blue-50/30 dark:from-gray-700/50 dark:to-blue-900/10 rounded-xl hover:from-gray-100/80 hover:to-blue-100/40 dark:hover:from-gray-700/80 dark:hover:to-blue-900/20 transition-all duration-200 border border-gray-200/50 dark:border-gray-600/30 hover:border-blue-300/50 hover:shadow-sm"
+                    key={`folder-${index}`}
+                    className="group flex items-center gap-4 p-4 rounded-xl transition-all duration-200 bg-gradient-to-r from-amber-50/80 to-orange-50/30 dark:from-amber-900/20 dark:to-orange-900/10 hover:from-amber-100/80 hover:to-orange-100/40 dark:hover:from-amber-900/30 dark:hover:to-orange-900/20 border border-amber-200/50 dark:border-amber-600/30 hover:border-amber-300/50 hover:shadow-sm"
                   >
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-200">
-                      <File className="h-5 w-5 text-white" />
+                    <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                      <Folder className="w-6 h-6" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
-                        {file.name}
+                        📁 {folder.name}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-xs text-muted-foreground font-medium">
-                          {formatFileSize(file.size)}
+                          {formatFileSize(folder.size)} • {folder.files.length} file{folder.files.length !== 1 ? 's' : ''}
                         </p>
                         <span className="w-1 h-1 bg-muted-foreground/50 rounded-full"></span>
-                        <p className="text-xs text-primary font-medium">
-                          #{index + 1}
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                          Cartella
                         </p>
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeFile(index)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFolder(index);
+                      }}
                       disabled={isSending}
                       className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50 rounded-lg transition-all duration-200 hover:scale-110"
                     >
@@ -818,12 +1079,95 @@ export default function Home() {
                     </Button>
                   </div>
                 ))}
+                
+                {/* Files */}
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={`file-${index}`}
+                    className={`group flex items-center gap-4 p-4 rounded-xl transition-all duration-200 cursor-pointer ${
+                      selectedFileIndex === index
+                        ? 'bg-gradient-to-r from-blue-100/80 to-purple-100/40 dark:from-blue-900/50 dark:to-purple-900/30 border-2 border-blue-400/70 shadow-md'
+                        : 'bg-gradient-to-r from-gray-50/80 to-blue-50/30 dark:from-gray-700/50 dark:to-blue-900/10 hover:from-gray-100/80 hover:to-blue-100/40 dark:hover:from-gray-700/80 dark:hover:to-blue-900/20 border border-gray-200/50 dark:border-gray-600/30 hover:border-blue-300/50 hover:shadow-sm'
+                    }`}
+                    onClick={() => setSelectedFileIndex(selectedFileIndex === index ? null : index)}
+                  >
+                    <FilePreview 
+                      file={file} 
+                      size="small" 
+                      className="group-hover:scale-110 transition-transform duration-200 shadow-sm" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                        {file.webkitRelativePath || file.name}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-muted-foreground font-medium">
+                          {formatFileSize(file.size)}
+                        </p>
+                        <span className="w-1 h-1 bg-muted-foreground/50 rounded-full"></span>
+                        <p className="text-xs text-primary font-medium">
+                          File
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFile(index);
+                      }}
+                      disabled={isSending}
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50 rounded-lg transition-all duration-200 hover:scale-110"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                  </div>
+                </div>
+
+                {/* Right: File Preview */}
+                {selectedFileIndex !== null && (
+                  <div className="w-80 flex flex-col">
+                    <div className="mb-4">
+                      <h4 className="text-lg font-semibold text-foreground mb-2">Anteprima File</h4>
+                      <div className="bg-muted/30 rounded-lg p-4 text-center">
+                        <FilePreview 
+                          file={selectedFiles[selectedFileIndex]} 
+                          size="large" 
+                          className="mx-auto mb-4" 
+                        />
+                        <div className="text-left space-y-2">
+                          <p className="font-medium text-sm truncate">
+                            {selectedFiles[selectedFileIndex].webkitRelativePath || selectedFiles[selectedFileIndex].name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(selectedFiles[selectedFileIndex].size)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Tipo: {selectedFiles[selectedFileIndex].type || 'Sconosciuto'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Modificato: {new Date(selectedFiles[selectedFileIndex].lastModified).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
           {/* Transfer Progress */}
           {transferProgress && (
-            <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+            <div 
+              className={`p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl transition-all duration-1000 ease-in-out ${
+                isProgressHiding 
+                  ? 'transform translate-y-full opacity-0 scale-95' 
+                  : 'transform translate-y-0 opacity-100 scale-100'
+              }`}
+            >
               <div className="flex items-center gap-4 mb-4">
                 <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-lg">
                   {transferProgress.type === 'sending' ? (
@@ -984,11 +1328,27 @@ export default function Home() {
               />
               {t("dialog.fileRequest")}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} &quot;{incomingFileRequest?.fileName}&quot;
-              ({incomingFileRequest ? formatFileSize(incomingFileRequest.fileSize) : ''}).
-              <br />
-              {t("dialog.acceptFile")}
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
+                  <FilePreviewMetadata 
+                    fileName={incomingFileRequest?.fileName || ''}
+                    fileSize={incomingFileRequest?.fileSize || 0}
+                    size="medium"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-foreground truncate">
+                      {incomingFileRequest?.fileName}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {incomingFileRequest ? formatFileSize(incomingFileRequest.fileSize) : ''}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} questo file. {t("dialog.acceptFile")}
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1016,21 +1376,28 @@ export default function Home() {
               />
               {t("dialog.multipleFilesRequest")}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {incomingBatchRequest?.fromName} {t("dialog.wantsToSendMultiple")} {incomingBatchRequest?.files.length} {t("dialog.files")}:
+            <AlertDialogDescription asChild>
+              <div>
+                {incomingBatchRequest?.fromName} {t("dialog.wantsToSendMultiple")} {incomingBatchRequest?.files.length} {t("dialog.files")}:
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           
           {/* File List */}
           <div className="max-h-40 overflow-y-auto space-y-2 my-4">
             {incomingBatchRequest?.files.map((file, index) => (
-              <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <File className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <div key={index} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                <FilePreviewMetadata 
+                  fileName={file.fileName}
+                  fileSize={file.fileSize}
+                  relativePath={(file as { relativePath?: string }).relativePath}
+                  size="small"
+                />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                    {file.fileName}
+                  <p className="font-medium text-sm text-foreground truncate">
+                    {(file as { relativePath?: string }).relativePath || file.fileName}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     {formatFileSize(file.fileSize)}
                   </p>
                 </div>
@@ -1039,10 +1406,10 @@ export default function Home() {
           </div>
 
           <div className="bg-muted p-3 rounded-lg">
-            <p className="text-sm text-foreground">
+            <div className="text-sm text-foreground">
               <strong>{t("dialog.total")}:</strong> {incomingBatchRequest?.files.length} {t("dialog.files")} 
               ({incomingBatchRequest ? formatFileSize(incomingBatchRequest.files.reduce((total, file) => total + file.fileSize, 0)) : ''})
-            </p>
+            </div>
           </div>
 
           <AlertDialogFooter>
@@ -1055,6 +1422,57 @@ export default function Home() {
               onClick={() => incomingBatchRequest && acceptBatchFiles(incomingBatchRequest.socketId, incomingBatchRequest.batchId)}
             >
               {t("dialog.acceptAll")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Decrypt File Dialog */}
+      <AlertDialog open={showDecryptDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-3">
+              <Lock className="h-6 w-6 text-green-600" />
+              File Criptato
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <div>
+                  Hai ricevuto un file criptato: <strong>{pendingEncryptedFile?.fileName}</strong>
+                </div>
+                <div>
+                  Inserisci la password per decrittare e scaricare il file:
+                </div>
+                {decryptAttempts > 0 && (
+                  <div className="text-orange-600 dark:text-orange-400 text-sm font-medium">
+                    ⚠️ Tentativ{3 - decryptAttempts === 1 ? 'o' : 'i'} rimanen{3 - decryptAttempts === 1 ? 'te' : 'ti'}: {3 - decryptAttempts}
+                  </div>
+                )}
+                <Input
+                  type="password"
+                  placeholder="Password di decrittografia"
+                  value={decryptPassword}
+                  onChange={(e) => setDecryptPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDecryptFile();
+                  }}
+                  className="mt-2"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDecryptDialog(false);
+              setDecryptPassword("");
+              setDecryptAttempts(0);
+              setPendingEncryptedFile(null);
+            }}>
+              Annulla
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDecryptFile} disabled={!decryptPassword.trim()}>
+              <Lock className="h-4 w-4 mr-2" />
+              Decritta e Scarica
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -29,7 +29,7 @@ interface WebRTCConnection {
   dataChannel?: RTCDataChannel;
 }
 
-export const useWebRTC = () => {
+export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string, relativePath: string) => boolean) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
@@ -312,6 +312,7 @@ export const useWebRTC = () => {
         target: targetSocketId,
         fileName: file.name,
         fileSize: file.size,
+        relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
         fromName: deviceInfo?.deviceName || 'Unknown Device'
       });
 
@@ -357,7 +358,8 @@ export const useWebRTC = () => {
     dataChannel.send(JSON.stringify({
       type: 'file-info',
       fileName: file.name,
-      fileSize: file.size
+      fileSize: file.size,
+      relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
     }));
 
     const chunkSize = 16384;
@@ -385,7 +387,11 @@ export const useWebRTC = () => {
           setTimeout(sendChunk, 10);
         } else {
           dataChannel.send(JSON.stringify({ type: 'file-complete' }));
-          setTransferProgress(null);
+          
+          // Keep progress at 100% for a moment to show completion, then clear
+          setTimeout(() => {
+            setTransferProgress(null);
+          }, 2500); // 1s delay + 1s animation + 0.5s buffer
           
           // Keep connection open for future transfers  
           // Don't close the connection here anymore
@@ -423,7 +429,8 @@ export const useWebRTC = () => {
     // Prepare file info for batch request
     const fileInfos = files.map(file => ({
       fileName: file.name,
-      fileSize: file.size
+      fileSize: file.size,
+      relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
     }));
 
     // Send batch file request
@@ -504,6 +511,7 @@ export const useWebRTC = () => {
         let receivedSize = 0;
         let expectedSize = 0;
         let fileName = '';
+        let relativePath = '';
         
         event.channel.onopen = () => {
           console.log('Data channel opened with', data.from);
@@ -552,6 +560,7 @@ export const useWebRTC = () => {
               });
             } else if (message.type === 'file-info') {
               fileName = message.fileName;
+              relativePath = message.relativePath || message.fileName;
               expectedSize = message.fileSize;
               receivedBuffer = [];
               receivedSize = 0;
@@ -570,19 +579,39 @@ export const useWebRTC = () => {
                 type: 'receiving'
               });
             } else if (message.type === 'file-complete') {
-              const blob = new Blob(receivedBuffer);
-              const url = URL.createObjectURL(blob);
+              const fileData = new ArrayBuffer(receivedSize);
+              const fileView = new Uint8Array(fileData);
+              let offset = 0;
               
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = fileName;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+              // Combine all received chunks
+              receivedBuffer.forEach(buffer => {
+                fileView.set(new Uint8Array(buffer), offset);
+                offset += buffer.byteLength;
+              });
+              
+              // Use callback if provided, otherwise default download behavior
+              if (onFileReceived && onFileReceived(fileData, fileName, relativePath)) {
+                // File handled by callback
+              } else if (!onFileReceived) {
+                // Default behavior - direct download
+                const blob = new Blob([fileData]);
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = relativePath;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }
               
               setIncomingFile(null);
-              setTransferProgress(null);
+              
+              // Keep progress at 100% for a moment to show completion, then clear
+              setTimeout(() => {
+                setTransferProgress(null);
+              }, 2500); // 1s delay + 1s animation + 0.5s buffer
               
               // Keep connection open for future transfers
               // Don't close the connection here anymore
@@ -791,6 +820,7 @@ export const useWebRTC = () => {
       });
       connections.current.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Separate useEffect for chat message listeners to ensure fresh peers closure
