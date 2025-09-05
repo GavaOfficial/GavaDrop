@@ -5,18 +5,14 @@ import { File, FileText, FileImage, FileVideo, FileAudio, Archive } from 'lucide
 
 interface FilePreviewMetadataProps {
   fileName: string;
-  fileSize: number;
   fileType?: string;
-  relativePath?: string;
   size?: 'small' | 'medium' | 'large';
   className?: string;
 }
 
 export const FilePreviewMetadata: React.FC<FilePreviewMetadataProps> = ({ 
   fileName,
-  fileSize,
   fileType = '',
-  relativePath,
   size = 'small',
   className = '' 
 }) => {

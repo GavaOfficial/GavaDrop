@@ -92,14 +92,14 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
     removeFromHistory(itemId);
     loadHistory();
     toast.success(t("history.removeFromHistory"));
-  }, [loadHistory]);
+  }, [loadHistory, t]);
 
   const handleClearAll = useCallback(() => {
     clearHistory();
     loadHistory();
     setShowClearDialog(false);
     toast.success(t("history.cleared"));
-  }, [loadHistory]);
+  }, [loadHistory, t]);
 
   const handleResend = useCallback((item: TransferHistoryItem) => {
     if (onResendFile && item.direction === 'sent') {
@@ -236,9 +236,7 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
                         <div className="relative">
                           <FilePreviewMetadata
                             fileName={item.fileName}
-                            fileSize={item.fileSize}
                             fileType={item.fileType}
-                            relativePath={item.relativePath}
                             size="small"
                           />
                           
@@ -313,11 +311,11 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>{t("history.clearAll")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("dialog.confirmClearHistory", "Sei sicuro di voler eliminare tutti gli elementi dalla cronologia? Questa azione non può essere annullata.")}
+              {t("dialog.confirmClearHistory")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("dialog.cancel", "Annulla")}</AlertDialogCancel>
+            <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleClearAll}
               className="bg-red-600 hover:bg-red-700"

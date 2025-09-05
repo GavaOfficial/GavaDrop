@@ -470,6 +470,9 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
   }, [socket, deviceInfo, sendFile]);
 
   useEffect(() => {
+    const timers = disconnectionTimers.current;
+    const conns = connections.current;
+    
     const socketInstance = io('http://localhost:3002');
     
     // Get or create persistent client ID
@@ -789,11 +792,11 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       });
     });
 
-    socketInstance.on('file-response', (data: { accepted: boolean, from: string }) => {
+    socketInstance.on('file-response', () => {
       // This is handled in the sendFile function
     });
 
-    socketInstance.on('batch-file-response', (data: { accepted: boolean, batchId: string, from: string }) => {
+    socketInstance.on('batch-file-response', () => {
       // This is handled in the sendBatchFiles function
     });
 
@@ -811,14 +814,14 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
 
     return () => {
       // Clear all disconnection timers
-      disconnectionTimers.current.forEach(timer => clearTimeout(timer));
-      disconnectionTimers.current.clear();
+      timers.forEach(timer => clearTimeout(timer));
+      timers.clear();
       
       socketInstance.disconnect();
-      connections.current.forEach(conn => {
+      conns.forEach(conn => {
         conn.peerConnection.close();
       });
-      connections.current.clear();
+      conns.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

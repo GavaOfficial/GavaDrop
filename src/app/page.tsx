@@ -404,7 +404,7 @@ export default function Home() {
     } finally {
       setIsSending(false);
     }
-  }, [selectedFiles, selectedFolders, selectedPeer, sendFile, sendBatchFiles, clearSavedFiles, t, isEncryptionEnabled, encryptionPassword]);
+  }, [selectedFiles, selectedFolders, selectedPeer, sendFile, sendBatchFiles, clearSavedFiles, t, isEncryptionEnabled, encryptionPassword, peers]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -583,7 +583,7 @@ export default function Home() {
 
     }
     setIsStateLoaded(true);
-  }, []);
+  }, [t]);
 
   // Save input message when it changes
   useEffect(() => {
@@ -1550,7 +1550,6 @@ export default function Home() {
                 <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
                   <FilePreviewMetadata 
                     fileName={incomingFileRequest?.fileName || ''}
-                    fileSize={incomingFileRequest?.fileSize || 0}
                     size="medium"
                   />
                   <div className="flex-1 min-w-0">
@@ -1606,8 +1605,6 @@ export default function Home() {
               <div key={index} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                 <FilePreviewMetadata 
                   fileName={file.fileName}
-                  fileSize={file.fileSize}
-                  relativePath={(file as { relativePath?: string }).relativePath}
                   size="small"
                 />
                 <div className="flex-1 min-w-0">
