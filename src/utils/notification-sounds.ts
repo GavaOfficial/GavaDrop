@@ -9,7 +9,12 @@ let audioContext: AudioContext | null = null;
 
 const getAudioContext = (): AudioContext => {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtx) {
+      audioContext = new AudioCtx();
+    } else {
+      throw new Error('AudioContext not supported');
+    }
   }
   return audioContext;
 };
@@ -132,5 +137,5 @@ export const initializeAudioContext = (): void => {
  */
 export const isAudioSupported = (): boolean => {
   return typeof window !== 'undefined' && 
-         (window.AudioContext !== undefined || (window as any).webkitAudioContext !== undefined);
+         (window.AudioContext !== undefined || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext !== undefined);
 };

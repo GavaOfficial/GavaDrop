@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, MessageCircle, X } from "lucide-react"
 import { Message } from "@/hooks/useWebRTC"
@@ -25,8 +24,7 @@ export function ChatPanel({
   selectedPeerId, 
   selectedPeerName, 
   messages, 
-  onSendMessage,
-  unreadCount 
+  onSendMessage
 }: ChatPanelProps) {
   const [inputMessage, setInputMessage] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -47,7 +45,7 @@ export function ChatPanel({
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -136,7 +134,7 @@ export function ChatPanel({
           <Input
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={t("chat.typeMessage")}
             className="flex-1"
             disabled={!selectedPeerId}
