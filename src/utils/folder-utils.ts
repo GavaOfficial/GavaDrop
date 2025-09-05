@@ -71,7 +71,7 @@ export async function compressFolder(folder: FolderInfo): Promise<File> {
 export function getItemIcon(item: File | FolderInfo): string {
   if ('files' in item) {
     // È una cartella
-    return '📁';
+    return 'FOLDER';
   } else {
     // È un file - determina l'icona basata sull'estensione
     const extension = item.name.split('.').pop()?.toLowerCase();
@@ -82,28 +82,28 @@ export function getItemIcon(item: File | FolderInfo): string {
       case 'png':
       case 'gif':
       case 'webp':
-        return '🖼️';
+        return 'IMAGE';
       case 'mp4':
       case 'avi':
       case 'mov':
       case 'mkv':
-        return '🎥';
+        return 'VIDEO';
       case 'mp3':
       case 'wav':
       case 'ogg':
       case 'flac':
-        return '🎵';
+        return 'AUDIO';
       case 'pdf':
-        return '📄';
+        return 'PDF';
       case 'txt':
       case 'md':
-        return '📝';
+        return 'TEXT';
       case 'zip':
       case 'rar':
       case '7z':
-        return '📦';
+        return 'ARCHIVE';
       default:
-        return '📄';
+        return 'FILE';
     }
   }
 }

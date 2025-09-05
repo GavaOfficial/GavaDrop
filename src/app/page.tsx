@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -16,7 +15,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { Upload, Share2, Wifi, Smartphone, Monitor, Tablet, FileDown, FileUp, Edit3, Check, X, File, Trash2, Send, MessageCircle, Folder, FolderOpen, Lock, Unlock } from "lucide-react";
+import { Upload, Wifi, Smartphone, Monitor, Tablet, FileDown, FileUp, Edit3, Check, X, Trash2, Send, MessageCircle, Folder, Lock, Unlock, History } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useWebRTC } from "@/hooks/useWebRTC";
@@ -27,7 +26,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FilePreview } from "@/components/file-preview";
 import { FilePreviewMetadata } from "@/components/file-preview-metadata";
 import { encryptFile, decryptFile } from "@/utils/encryption";
-import { groupFilesByFolder, compressFolder, getItemIcon, FolderInfo } from "@/utils/folder-utils";
+import { groupFilesByFolder, compressFolder } from "@/utils/folder-utils";
+import { TransferHistory } from "@/components/transfer-history";
+import { saveToHistory, saveFileToHistory } from "@/utils/history-utils";
+import { playNotificationSound, initializeAudioContext } from "@/utils/notification-sounds";
 
 export default function Home() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -38,14 +40,13 @@ export default function Home() {
   const [selectedFolders, setSelectedFolders] = useState<import('@/utils/folder-utils').FolderInfo[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isSelectingFolder, setIsSelectingFolder] = useState(false);
   const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(null);
   const [encryptionPassword, setEncryptionPassword] = useState("");
   const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
   const [showDecryptDialog, setShowDecryptDialog] = useState(false);
   const [decryptPassword, setDecryptPassword] = useState("");
   const [decryptAttempts, setDecryptAttempts] = useState(0);
-  const [pendingEncryptedFile, setPendingEncryptedFile] = useState<{data: ArrayBuffer, fileName: string} | null>(null);
+  const [pendingEncryptedFile, setPendingEncryptedFile] = useState<{data: ArrayBuffer, fileName: string, fromSocketId: string, originalFileName: string} | null>(null);
   const [isProgressHiding, setIsProgressHiding] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [lastSelectedClientId, setLastSelectedClientId] = useState<string | null>(null);
@@ -53,8 +54,27 @@ export default function Home() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const isSelectingFolderRef = useRef<boolean>(false);
   const [isStateLoaded, setIsStateLoaded] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [receivedFiles, setReceivedFiles] = useState<{data: ArrayBuffer, fileName: string, relativePath: string, fromSocketId: string}[]>([]);
   
   const { t } = useLanguage();
+
+  // Initialize audio context on first user interaction
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      initializeAudioContext();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('keydown', handleFirstInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, []);
   
   const { 
     peers, 
@@ -67,7 +87,6 @@ export default function Home() {
     unreadCounts,
     markMessagesAsRead,
     disconnectedPeers,
-    incomingFile, 
     incomingFileRequest,
     incomingBatchRequest,
     transferProgress, 
@@ -75,14 +94,20 @@ export default function Home() {
     rejectFile,
     acceptBatchFiles,
     rejectBatchFiles,
-    changeDeviceName 
+    changeDeviceName,
+    resendFile
   } = useWebRTC(
     // Callback per gestire file ricevuti
-    useCallback((data: ArrayBuffer, fileName: string, relativePath: string) => {
+    useCallback((data: ArrayBuffer, fileName: string, relativePath: string, fromSocketId: string) => {
       // Controlla se il file è criptato (estensione .encrypted)
       if (fileName.endsWith('.encrypted')) {
         const originalFileName = relativePath.replace(/\.encrypted$/, '');
-        setPendingEncryptedFile({ data, fileName: originalFileName });
+        setPendingEncryptedFile({ 
+          data, 
+          fileName: originalFileName, 
+          fromSocketId, 
+          originalFileName: fileName // Nome del file criptato originale
+        });
         setDecryptAttempts(0); // Reset tentativi per nuovo file
         setDecryptPassword(""); // Reset password
         setShowDecryptDialog(true);
@@ -101,9 +126,75 @@ export default function Home() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
+      // Aggiungi alla coda di file ricevuti per processare in seguito
+      setReceivedFiles(prev => [...prev, { data, fileName, relativePath, fromSocketId }]);
+      
+      // Play completion sound
+      playNotificationSound('fileComplete');
+      
       return true; // File gestito
     }, [])
   );
+
+  // Process received files and save to history
+  useEffect(() => {
+    if (receivedFiles.length > 0 && peers.length > 0) {
+      receivedFiles.forEach(({ data, fileName, relativePath, fromSocketId }) => {
+        const fromPeer = peers.find(p => p.socketId === fromSocketId);
+        if (fromPeer) {
+          const blob = new Blob([data]);
+          saveToHistory({
+            fileName: fileName,
+            fileSize: data.byteLength,
+            fileType: blob.type || 'application/octet-stream',
+            relativePath: relativePath,
+            direction: 'received',
+            deviceName: fromPeer.deviceName,
+            deviceId: fromPeer.socketId,
+            status: 'completed',
+            encrypted: fileName.endsWith('.encrypted')
+          });
+        }
+      });
+      // Clear processed files
+      setReceivedFiles([]);
+    }
+  }, [receivedFiles, peers]);
+
+  // Play sound for incoming file requests
+  useEffect(() => {
+    if (incomingFileRequest) {
+      playNotificationSound('fileRequest');
+    }
+  }, [incomingFileRequest]);
+
+  // Play sound for incoming batch file requests
+  useEffect(() => {
+    if (incomingBatchRequest) {
+      playNotificationSound('fileRequest');
+    }
+  }, [incomingBatchRequest]);
+
+  // Play sound for new chat messages
+  const prevUnreadCountsRef = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    const prevCounts = prevUnreadCountsRef.current;
+    let hasNewMessage = false;
+    
+    unreadCounts.forEach((count, peerId) => {
+      const prevCount = prevCounts.get(peerId) || 0;
+      if (count > prevCount) {
+        hasNewMessage = true;
+      }
+    });
+    
+    if (hasNewMessage) {
+      playNotificationSound('message');
+    }
+    
+    // Update previous counts
+    prevUnreadCountsRef.current = new Map(unreadCounts);
+  }, [unreadCounts]);
 
   // Clear file metadata when files are successfully sent or cleared
   const clearSavedFiles = useCallback(() => {
@@ -135,7 +226,24 @@ export default function Home() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        toast.success("File decriptato e scaricato con successo!");
+        // Save to history after successful decryption
+        const fromPeer = peers.find(p => p.socketId === pendingEncryptedFile.fromSocketId);
+        if (fromPeer) {
+          saveToHistory({
+            fileName: pendingEncryptedFile.fileName,
+            fileSize: decryptedFile.size,
+            fileType: decryptedFile.type || 'application/octet-stream',
+            relativePath: pendingEncryptedFile.fileName,
+            direction: 'received',
+            deviceName: fromPeer.deviceName,
+            deviceId: fromPeer.socketId,
+            status: 'completed',
+            encrypted: true
+          });
+        }
+        
+        toast.success(t("encryption.success"));
+        playNotificationSound('success');
         setShowDecryptDialog(false);
         setDecryptPassword("");
         setDecryptAttempts(0);
@@ -146,12 +254,14 @@ export default function Home() {
         setDecryptPassword("");
         
         if (newAttempts >= 3) {
-          toast.error("Troppi tentativi errati. File scartato.");
+          toast.error(t("encryption.tooManyAttempts"));
+          playNotificationSound('error');
           setShowDecryptDialog(false);
           setDecryptAttempts(0);
           setPendingEncryptedFile(null);
         } else {
-          toast.error(`Password errata. Rimangono ${3 - newAttempts} tentativ${3 - newAttempts === 1 ? 'o' : 'i'}.`);
+          const remaining = 3 - newAttempts;
+          toast.error(`${t("encryption.wrongPassword")} ${remaining} ${remaining === 1 ? t("encryption.wrongPasswordSingular") : t("encryption.wrongPasswordPlural")}.`);
         }
       }
     } catch (error) {
@@ -161,15 +271,16 @@ export default function Home() {
       setDecryptPassword("");
       
       if (newAttempts >= 3) {
-        toast.error("Troppi tentativi errati. File scartato.");
+        toast.error(t("encryption.tooManyAttempts"));
         setShowDecryptDialog(false);
         setDecryptAttempts(0);
         setPendingEncryptedFile(null);
       } else {
-        toast.error(`Errore nella decrittografia. Rimangono ${3 - newAttempts} tentativ${3 - newAttempts === 1 ? 'o' : 'i'}.`);
+        const remaining = 3 - newAttempts;
+        toast.error(`${t("encryption.error")} ${remaining} ${remaining === 1 ? t("encryption.wrongPasswordSingular") : t("encryption.wrongPasswordPlural")}.`);
       }
     }
-  }, [pendingEncryptedFile, decryptPassword, decryptAttempts]);
+  }, [pendingEncryptedFile, decryptPassword, decryptAttempts, peers, t]);
 
   const handleFileSend = useCallback(async () => {
     console.log('handleFileSend called with:', selectedFiles.length, 'files,', selectedFolders.length, 'folders, selectedPeer:', selectedPeer);
@@ -200,14 +311,71 @@ export default function Home() {
         })
       );
 
+      // Get target device name for history
+      const targetDevice = peers.find(p => p.socketId === selectedPeer);
+      const deviceName = targetDevice?.deviceName || t("file.unknownDevice");
+
       if (filesToSend.length === 1) {
         // Single item - use normal send
         await sendFile(filesToSend[0], selectedPeer);
-        toast.success(`${allFiles[0].name} ${t("toast.sentSuccess")} ${isEncryptionEnabled ? '(criptato)' : ''}`);
+        
+        // Save to history with file data for resend
+        await saveFileToHistory(allFiles[0], {
+          fileName: allFiles[0].name,
+          fileSize: allFiles[0].size,
+          fileType: allFiles[0].type || 'application/octet-stream',
+          relativePath: (allFiles[0] as File & { webkitRelativePath?: string }).webkitRelativePath || allFiles[0].name,
+          direction: 'sent',
+          deviceName,
+          deviceId: selectedPeer,
+          status: 'completed',
+          encrypted: isEncryptionEnabled
+        });
+        
+        toast.success(`${allFiles[0].name} ${t("toast.sentSuccess")} ${isEncryptionEnabled ? `(${t("file.encrypted")})` : ''}`);
+        playNotificationSound('success');
       } else {
         // Multiple items - use batch send
         await sendBatchFiles(filesToSend, selectedPeer);
-        toast.success(`${filesToSend.length} elementi ${t("toast.sentSuccessMultiple")} ${isEncryptionEnabled ? '(criptati)' : ''}`);
+        
+        // Save each item to history with batch ID
+        const batchId = `batch-${Date.now()}`;
+        await Promise.all(
+          allFiles.map(async (file) => {
+            // For batch files, save file data only for small files to avoid storage overflow
+            if (file.size <= 1024 * 1024) { // 1MB limit for batch files
+              await saveFileToHistory(file, {
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type || 'application/octet-stream',
+                relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+                direction: 'sent',
+                deviceName,
+                deviceId: selectedPeer,
+                status: 'completed',
+                encrypted: isEncryptionEnabled,
+                batchId
+              });
+            } else {
+              // Large files in batch - save without file data
+              saveToHistory({
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type || 'application/octet-stream',
+                relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+                direction: 'sent',
+                deviceName,
+                deviceId: selectedPeer,
+                status: 'completed',
+                encrypted: isEncryptionEnabled,
+                batchId
+              });
+            }
+          })
+        );
+        
+        toast.success(`${filesToSend.length} ${filesToSend.length === 1 ? t("file.element") : t("file.elements")} ${t("toast.sentSuccessMultiple")} ${isEncryptionEnabled ? `(${t("file.encrypted.plural")})` : ''}`);
+        playNotificationSound('success');
       }
       
       // Clear selected items only after successful sending
@@ -227,6 +395,7 @@ export default function Home() {
       } else {
         toast.error(t("toast.sendError"));
       }
+      playNotificationSound('error');
       console.error('Send error:', error);
       
       // Clear items even on error to reset the UI
@@ -265,8 +434,8 @@ export default function Home() {
     setSelectedFolders(prev => [...prev, ...folders]);
     
     const message = folders.length > 0 
-      ? `${folders.length} cartell${folders.length === 1 ? 'a' : 'e'} e ${singleFiles.length} file aggiunti`
-      : `${singleFiles.length} file aggiunti`;
+      ? `${folders.length} ${folders.length === 1 ? t("message.folderAdded") : t("message.foldersAdded")} ${t("message.and")} ${singleFiles.length} ${t("message.filesAdded")}`
+      : `${singleFiles.length} ${t("message.filesAdded")}`;
     
     toast.success(message);
   }, [selectedPeer, t]);
@@ -276,7 +445,7 @@ export default function Home() {
       toast.error(t("toast.selectDeviceFirst"));
       return;
     }
-    setIsSelectingFolder(false);
+    isSelectingFolderRef.current = false;
     fileInputRef.current?.click();
   }, [selectedPeer, t]);
 
@@ -285,14 +454,12 @@ export default function Home() {
       toast.error(t("toast.selectDeviceFirst"));
       return;
     }
-    setIsSelectingFolder(true);
     isSelectingFolderRef.current = true;
     
     folderInputRef.current?.click();
     
     // Reset state after a delay in case user cancels dialog
     setTimeout(() => {
-      setIsSelectingFolder(false);
       isSelectingFolderRef.current = false;
     }, 500);
   }, [selectedPeer, t]);
@@ -306,10 +473,9 @@ export default function Home() {
     setSelectedFiles(prev => [...prev, ...singleFiles]);
     setSelectedFolders(prev => [...prev, ...folders]);
     
-    const totalItems = singleFiles.length + folders.length;
     const message = folders.length > 0 
-      ? `${folders.length} cartell${folders.length === 1 ? 'a' : 'e'} e ${singleFiles.length} file aggiunti`
-      : `${singleFiles.length} file aggiunti`;
+      ? `${folders.length} ${folders.length === 1 ? t("message.folderAdded") : t("message.foldersAdded")} ${t("message.and")} ${singleFiles.length} ${t("message.filesAdded")}`
+      : `${singleFiles.length} ${t("message.filesAdded")}`;
     
     toast.success(message);
     
@@ -321,7 +487,6 @@ export default function Home() {
       folderInputRef.current.value = '';
     }
     // Reset folder selection state
-    setIsSelectingFolder(false);
     isSelectingFolderRef.current = false;
   }, [t]);
 
@@ -399,12 +564,10 @@ export default function Home() {
 
       // Check for saved file metadata
       const savedFiles = localStorage.getItem(`gavadrop-files-${clientId}`);
-      let hadSavedFiles = false;
       if (savedFiles) {
         try {
           const fileData = JSON.parse(savedFiles);
           if (fileData.files && fileData.files.length > 0) {
-            hadSavedFiles = true;
             // Show message about files that need to be reselected
             setTimeout(() => {
               toast.info(`${t("toast.filesWereSelected")} ${fileData.files.length} file${fileData.files.length !== 1 ? 's' : ''}. ${t("toast.pleaseReselectFiles")}`);
@@ -418,15 +581,6 @@ export default function Home() {
         }
       }
 
-      // Show restoration message if we have saved state
-      if (savedInputMessage || savedLastSelectedClientId || savedChatOpen) {
-        setTimeout(() => {
-          const message = hadSavedFiles 
-            ? `${t("toast.sessionRestored")} ${t("toast.pleaseReselectFiles")}`
-            : t("toast.sessionRestored");
-          toast.success(message);
-        }, 1000); // Delay to avoid toast showing before UI is ready
-      }
     }
     setIsStateLoaded(true);
   }, []);
@@ -682,7 +836,6 @@ export default function Home() {
                 {peers.map((peer) => {
                   const DeviceIcon = getDeviceIcon(peer.deviceName);
                   const isSelected = selectedPeer === peer.socketId;
-                  const unreadCount = unreadCounts.get(peer.socketId) || 0;
                   
                   return (
                     <div key={peer.socketId}>
@@ -800,7 +953,71 @@ export default function Home() {
             )}
           </div>
         </div>
+        
+        {/* History Button at bottom */}
+        <div className="p-4 border-t border-border bg-muted/20">
+          <Button
+            variant={showHistory ? "default" : "ghost"}
+            onClick={() => setShowHistory(!showHistory)}
+            className="w-full justify-start gap-2 h-10"
+          >
+            <History className="h-4 w-4" />
+{t("history.title")}
+          </Button>
+        </div>
       </div>
+
+      {/* History Overlay */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in-0 duration-200">
+          <div className="bg-background rounded-lg shadow-xl border border-border w-full max-w-2xl h-[80vh] flex flex-col animate-in zoom-in-95 duration-200">
+            {/* History Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">{t("history.transferHistory")}</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* History Content */}
+            <div className="flex-1 overflow-hidden">
+              <TransferHistory 
+                isOpen={showHistory} 
+                onResendFile={async (fileName, fileSize, deviceName, fileData) => {
+                  try {
+                    await resendFile(fileName, fileSize, deviceName, fileData);
+                    toast.success(`${fileName} ${t("toast.resendSuccess")}`);
+                    playNotificationSound('success');
+                    setShowHistory(false); // Chiudi cronologia dopo re-send
+                  } catch (error: unknown) {
+                    const errorMessage = (error as Error).message;
+                    if (errorMessage.includes('not currently connected')) {
+                      toast.error(`${t("toast.deviceNotConnected")}: ${deviceName}`);
+                    } else if (errorMessage.includes('No file selected') || errorMessage.includes('cancelled')) {
+                      toast.info(t("toast.selectOriginalFile"));
+                    } else if (errorMessage.includes('File size mismatch') || errorMessage.includes('Please select the original file')) {
+                      toast.error(errorMessage);
+                    } else if (errorMessage.includes('rejected')) {
+                      toast.error(t("toast.fileRejected"));
+                    } else {
+                      toast.error(t("toast.sendError"));
+                      console.error('Resend error:', error);
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -974,7 +1191,7 @@ export default function Home() {
                     {isSending 
                       ? `${t("transfer.sendingTo")} ${peers.find(p => p.socketId === selectedPeer)?.deviceName}...`
                       : `${t("transfer.readyToSendTo")} ${peers.find(p => p.socketId === selectedPeer)?.deviceName}`
-                    } - {selectedFiles.length + selectedFolders.length} elementi
+                    } - {selectedFiles.length + selectedFolders.length} ${(selectedFiles.length + selectedFolders.length) === 1 ? t("file.element") : t("file.elements")}
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -1002,7 +1219,7 @@ export default function Home() {
                     ) : (
                       <>
                         <Send className="h-4 w-4 mr-2" />
-                        {t("transfer.send")} {selectedFiles.length + selectedFolders.length} {selectedFiles.length + selectedFolders.length === 1 ? 'elemento' : 'elementi'}
+                        {t("transfer.send")} {selectedFiles.length + selectedFolders.length} {(selectedFiles.length + selectedFolders.length) === 1 ? t("file.element") : t("file.elements")}
                       </>
                     )}
                   </Button>
@@ -1020,13 +1237,13 @@ export default function Home() {
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIsEncryptionEnabled(e.target.checked)}
                           className="rounded border-gray-300 text-primary focus:ring-primary"
                         />
-                        <span className="font-medium text-sm">Crittografia End-to-End</span>
+                        <span className="font-medium text-sm">{t("encryption.endToEnd")}</span>
                       </label>
                     </div>
                     {isEncryptionEnabled && (
                       <Input
                         type="password"
-                        placeholder="Password per crittografia (opzionale)"
+                        placeholder={t("encryption.passwordPlaceholder")}
                         value={encryptionPassword}
                         onChange={(e) => setEncryptionPassword(e.target.value)}
                         className="text-sm"
@@ -1034,8 +1251,8 @@ export default function Home() {
                     )}
                     <p className="text-xs text-muted-foreground mt-2">
                       {isEncryptionEnabled 
-                        ? "I file saranno criptati prima dell'invio. Il destinatario dovrà inserire la stessa password."
-                        : "I file verranno inviati senza crittografia aggiuntiva."
+                        ? t("encryption.enabledDescription")
+                        : t("encryption.disabledDescription")
                       }
                     </p>
                   </div>
@@ -1053,15 +1270,15 @@ export default function Home() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
-                        📁 {folder.name}
+                        {folder.name}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-xs text-muted-foreground font-medium">
-                          {formatFileSize(folder.size)} • {folder.files.length} file{folder.files.length !== 1 ? 's' : ''}
+                          {formatFileSize(folder.size)} • {folder.files.length} {folder.files.length === 1 ? t("file.file") : t("file.files")}
                         </p>
                         <span className="w-1 h-1 bg-muted-foreground/50 rounded-full"></span>
                         <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                          Cartella
+                          {t("file.folder")}
                         </p>
                       </div>
                     </div>
@@ -1106,7 +1323,7 @@ export default function Home() {
                         </p>
                         <span className="w-1 h-1 bg-muted-foreground/50 rounded-full"></span>
                         <p className="text-xs text-primary font-medium">
-                          File
+                          {t("file.file")}
                         </p>
                       </div>
                     </div>
@@ -1131,7 +1348,7 @@ export default function Home() {
                 {selectedFileIndex !== null && (
                   <div className="w-80 flex flex-col">
                     <div className="mb-4">
-                      <h4 className="text-lg font-semibold text-foreground mb-2">Anteprima File</h4>
+                      <h4 className="text-lg font-semibold text-foreground mb-2">{t("file.preview")}</h4>
                       <div className="bg-muted/30 rounded-lg p-4 text-center">
                         <FilePreview 
                           file={selectedFiles[selectedFileIndex]} 
@@ -1146,10 +1363,10 @@ export default function Home() {
                             {formatFileSize(selectedFiles[selectedFileIndex].size)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Tipo: {selectedFiles[selectedFileIndex].type || 'Sconosciuto'}
+                            {t("file.type")} {selectedFiles[selectedFileIndex].type || t("file.unknown")}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Modificato: {new Date(selectedFiles[selectedFileIndex].lastModified).toLocaleDateString()}
+                            {t("file.modified")} {new Date(selectedFiles[selectedFileIndex].lastModified).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -1281,7 +1498,7 @@ export default function Home() {
                   <Input
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         if (inputMessage.trim() && selectedPeer && !isSelectedPeerTemporarilyDisconnected) {
@@ -1346,7 +1563,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} questo file. {t("dialog.acceptFile")}
+                  {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} {t("message.thisFile")}. {t("dialog.acceptFile")}
                 </div>
               </div>
             </AlertDialogDescription>
@@ -1433,24 +1650,24 @@ export default function Home() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-3">
               <Lock className="h-6 w-6 text-green-600" />
-              File Criptato
+              {t("encryption.fileEncrypted")}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-4">
                 <div>
-                  Hai ricevuto un file criptato: <strong>{pendingEncryptedFile?.fileName}</strong>
+                  {t("encryption.receivedEncrypted")} <strong>{pendingEncryptedFile?.fileName}</strong>
                 </div>
                 <div>
-                  Inserisci la password per decrittare e scaricare il file:
+                  {t("encryption.enterPassword")}
                 </div>
                 {decryptAttempts > 0 && (
                   <div className="text-orange-600 dark:text-orange-400 text-sm font-medium">
-                    ⚠️ Tentativ{3 - decryptAttempts === 1 ? 'o' : 'i'} rimanen{3 - decryptAttempts === 1 ? 'te' : 'ti'}: {3 - decryptAttempts}
+                    {3 - decryptAttempts === 1 ? t("encryption.attentionAttempts") : t("encryption.attentionAttemptsPlural")} {3 - decryptAttempts}
                   </div>
                 )}
                 <Input
                   type="password"
-                  placeholder="Password di decrittografia"
+                  placeholder={t("encryption.passwordPlaceholderDecrypt")}
                   value={decryptPassword}
                   onChange={(e) => setDecryptPassword(e.target.value)}
                   onKeyDown={(e) => {
@@ -1468,11 +1685,11 @@ export default function Home() {
               setDecryptAttempts(0);
               setPendingEncryptedFile(null);
             }}>
-              Annulla
+              {t("encryption.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDecryptFile} disabled={!decryptPassword.trim()}>
               <Lock className="h-4 w-4 mr-2" />
-              Decritta e Scarica
+              {t("encryption.decryptAndDownload")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

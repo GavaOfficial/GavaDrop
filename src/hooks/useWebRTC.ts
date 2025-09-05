@@ -29,7 +29,7 @@ interface WebRTCConnection {
   dataChannel?: RTCDataChannel;
 }
 
-export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string, relativePath: string) => boolean) => {
+export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string, relativePath: string, fromSocketId: string) => boolean) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
@@ -590,7 +590,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
               });
               
               // Use callback if provided, otherwise default download behavior
-              if (onFileReceived && onFileReceived(fileData, fileName, relativePath)) {
+              if (onFileReceived && onFileReceived(fileData, fileName, relativePath, data.from)) {
                 // File handled by callback
               } else if (!onFileReceived) {
                 // Default behavior - direct download
@@ -866,6 +866,80 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     };
   }, [socket, peers]);
 
+  const resendFile = useCallback(async (fileName: string, fileSize: number, deviceName: string, fileData?: string) => {
+    // Find the target device by name
+    const targetDevice = peers.find(peer => peer.deviceName === deviceName);
+    
+    if (!targetDevice) {
+      throw new Error(`Device "${deviceName}" is not currently connected`);
+    }
+
+    if (fileData) {
+      // Use saved file data to reconstruct the file
+      try {
+        const binaryString = atob(fileData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Create a File object from the saved data
+        const blob = new Blob([bytes]);
+        const file = new File([blob], fileName, { 
+          type: blob.type || 'application/octet-stream' 
+        });
+        
+        await sendFile(file, targetDevice.socketId);
+        return;
+      } catch (error) {
+        console.error('Failed to reconstruct file from saved data:', error);
+        // Fall through to file picker
+      }
+    }
+
+    // Fallback: ask user to select the file again (for large files not saved)
+    return new Promise<void>((resolve, reject) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '*/*';
+      
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (!files || files.length === 0) {
+          reject(new Error('No file selected'));
+          return;
+        }
+        
+        const selectedFile = files[0];
+        
+        // Verify the selected file matches the original
+        if (selectedFile.name !== fileName) {
+          reject(new Error(`Please select the original file "${fileName}"`));
+          return;
+        }
+        
+        if (selectedFile.size !== fileSize) {
+          reject(new Error(`File size mismatch. Expected ${fileSize} bytes but got ${selectedFile.size} bytes`));
+          return;
+        }
+        
+        try {
+          await sendFile(selectedFile, targetDevice.socketId);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      input.oncancel = () => {
+        reject(new Error('File selection cancelled'));
+      };
+      
+      // Trigger file selection
+      input.click();
+    });
+  }, [peers, sendFile]);
+
   return {
     peers,
     deviceInfo,
@@ -886,6 +960,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     rejectFile,
     acceptBatchFiles,
     rejectBatchFiles,
-    changeDeviceName
+    changeDeviceName,
+    resendFile
   };
 };

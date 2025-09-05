@@ -1,6 +1,78 @@
 # GavaDrop - Update History
 
-## Version 0.9.1 (Current)
+## Version 0.9.3 (Current)
+
+### Complete Transfer History System
+- **Comprehensive transfer tracking** with persistent localStorage storage
+  - TransferHistory component with advanced filtering (all/sent/received/encrypted)
+  - Real-time history updates for both sent and received files
+  - Date-based grouping with localized display (Today/Yesterday/Date)
+  - Visual file type indicators and metadata display in history
+  - Individual file removal and complete history clearing functionality
+  - Multilingual date formatting and interface translations
+
+### Intelligent File Resend System
+- **Smart file resending** with automatic data storage and retrieval
+  - Automatic file data storage (Base64) for files under 5MB
+  - Visual resend indicators: green icon (automatic), blue icon (requires file selection)
+  - Seamless file reconstruction from stored data without user interaction
+  - Fallback to manual file selection for large files or missing data
+  - Batch file support with selective storage for small files only
+  - Storage optimization with configurable file size limits and history retention
+
+### Professional Audio Notification System
+- **Synthetic audio notifications** using Web Audio API
+  - Five distinct notification sounds for different events
+  - fileRequest: Ascending dual tone for incoming file requests
+  - success: Major chord progression for successful operations
+  - fileComplete: Ascending trill for received files
+  - message: Gentle single tone for chat messages
+  - error: Descending tone sequence for errors
+  - Browser policy-compliant audio initialization on first user interaction
+  - Volume-optimized sounds designed to be informative but not intrusive
+
+### Enhanced User Interface & Navigation
+- **Redesigned history interface** integrated into sidebar
+  - History button relocated to bottom of sidebar for better UX
+  - Full-screen history overlay with smooth animations
+  - Advanced filtering and search capabilities within history
+  - Visual distinction between different transfer types and encryption status
+  - Improved file preview integration within history items
+  - Responsive design maintaining functionality across screen sizes
+
+### Multilingual System Expansion
+- **Extended translation coverage** for new features
+  - Complete history interface translations (Italian/English)
+  - Audio notification descriptions and tooltips
+  - Resend functionality user guidance and error messages
+  - Enhanced error handling with localized feedback
+  - Comprehensive UI text coverage including edge cases and error states
+
+### Technical Architecture Improvements
+- **Robust state management** for complex data persistence
+  - Enhanced useWebRTC hook with file data parameter support
+  - Circular dependency resolution in React component initialization
+  - Proper cleanup of unused imports and variables for optimal performance
+  - TypeScript interface enhancements for type safety
+  - Improved memory management for file data storage and retrieval
+
+### Storage & Performance Optimization
+- **Intelligent storage management** with size-based strategies
+  - Smart file storage limits: 5MB for single files, 1MB for batch files
+  - Automatic storage cleanup with configurable retention limits
+  - Efficient Base64 encoding/decoding for file data preservation
+  - Graceful fallback mechanisms when storage limits are exceeded
+  - Background cleanup of expired or corrupted storage data
+
+### Advanced Error Handling
+- **Comprehensive error management** for all new systems
+  - Robust handling of audio initialization failures across browsers
+  - Graceful degradation when localStorage is full or unavailable
+  - Proper error recovery for file reconstruction failures
+  - Enhanced user feedback for all error conditions with actionable guidance
+  - Silent fallback modes maintaining core functionality when features are unavailable
+
+## Version 0.9.1
 
 ### Advanced Folder Transfer System
 - **Complete folder transfer implementation** with ZIP compression

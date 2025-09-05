@@ -49,6 +49,8 @@ const translations = {
     "transfer.send": "Invia",
     "transfer.sendFiles": "File",
     "transfer.sending": "Inviando...",
+    "transfer.resendAuto": "Re-invio automatico",
+    "transfer.resendManual": "Re-invio (seleziona file)",
     
     // Progress
     "progress.sending": "Inviando",
@@ -67,6 +69,8 @@ const translations = {
     "dialog.reject": "Rifiuta",
     "dialog.acceptAll": "Accetta Tutto",
     "dialog.rejectAll": "Rifiuta Tutto",
+    "dialog.confirmClearHistory": "Sei sicuro di voler eliminare tutti gli elementi dalla cronologia? Questa azione non può essere annullata.",
+    "dialog.cancel": "Annulla",
     
     // Toasts
     "toast.filesAdded": "file aggiunti alla lista",
@@ -82,6 +86,9 @@ const translations = {
     "toast.sessionRestored": "Sessione ripristinata - lo stato della chat è stato recuperato",
     "toast.filesWereSelected": "Avevi selezionato",
     "toast.pleaseReselectFiles": "Riseleziona i tuoi file per continuare.",
+    "toast.resendSuccess": "re-inviato con successo!",
+    "toast.deviceNotConnected": "Dispositivo non connesso",
+    "toast.selectOriginalFile": "Seleziona il file originale per re-inviarlo",
     
     // Languages
     "lang.italian": "Italiano",
@@ -92,7 +99,74 @@ const translations = {
     "chat.noMessages": "Nessun messaggio",
     "chat.startConversation": "Inizia una conversazione",
     "chat.typeMessage": "Scrivi un messaggio...",
-    "chat.title": "Chat"
+    "chat.title": "Chat",
+    
+    // History
+    "history.title": "Cronologia",
+    "history.transferHistory": "Cronologia Trasferimenti",
+    "history.allTransfers": "Tutti i trasferimenti",
+    "history.sentOnly": "Solo inviati",
+    "history.receivedOnly": "Solo ricevuti",
+    "history.encryptedOnly": "Solo criptati",
+    "history.noTransfers": "Nessun trasferimento nella cronologia",
+    "history.noTransfersFiltered": "Nessun trasferimento",
+    "history.noTransfersCompleted": "Nessun trasferimento effettuato",
+    "history.completedWillAppear": "I trasferimenti completati appariranno qui",
+    "history.removeFromHistory": "Rimuovi dalla cronologia",
+    "history.clearAll": "Svuota tutto",
+    "history.cleared": "Cronologia svuotata completamente",
+    "history.today": "Oggi",
+    "history.yesterday": "Ieri",
+    "history.transfers": "trasferimenti",
+    "history.transfer": "trasferimento",
+    "history.filtered": "filtrati",
+    
+    // File types and misc
+    "file.element": "elemento",
+    "file.elements": "elementi",
+    "file.folder": "Cartella",
+    "file.file": "File",
+    "file.files": "file",
+    "file.encrypted": "criptato",
+    "file.encrypted.plural": "criptati",
+    "file.unknown": "Sconosciuto",
+    "file.type": "Tipo:",
+    "file.modified": "Modificato:",
+    "file.preview": "Anteprima File",
+    "file.unknownDevice": "Dispositivo Sconosciuto",
+    
+    // Encryption
+    "encryption.endToEnd": "Crittografia End-to-End",
+    "encryption.passwordPlaceholder": "Password per crittografia (opzionale)",
+    "encryption.enabledDescription": "I file saranno criptati prima dell'invio. Il destinatario dovrà inserire la stessa password.",
+    "encryption.disabledDescription": "I file verranno inviati senza crittografia aggiuntiva.",
+    "encryption.fileEncrypted": "File Criptato",
+    "encryption.receivedEncrypted": "Hai ricevuto un file criptato:",
+    "encryption.enterPassword": "Inserisci la password per decrittare e scaricare il file:",
+    "encryption.attentionAttempts": "Attenzione: Tentativo rimanente:",
+    "encryption.attentionAttemptsPlural": "Attenzione: Tentativi rimanenti:",
+    "encryption.passwordPlaceholderDecrypt": "Password di decrittografia",
+    "encryption.decryptAndDownload": "Decritta e Scarica",
+    "encryption.cancel": "Annulla",
+    "encryption.success": "File decriptato e scaricato con successo!",
+    "encryption.wrongPassword": "Password errata. Rimangono",
+    "encryption.wrongPasswordSingular": "tentativo",
+    "encryption.wrongPasswordPlural": "tentativi",
+    "encryption.tooManyAttempts": "Troppi tentativi errati. File scartato.",
+    "encryption.error": "Errore nella decrittografia. Rimangono",
+    
+    // Messages and notifications
+    "message.folderAdded": "cartella aggiunta",
+    "message.foldersAdded": "cartelle aggiunte",
+    "message.fileAdded": "file aggiunto",
+    "message.filesAdded": "file aggiunti",
+    "message.and": "e",
+    "message.thisFile": "questo file",
+    
+    // Misc
+    "misc.devices": "Dispositivi",
+    "misc.reconnecting": "Reconnecting...",
+    "misc.total": "Totale"
   },
   en: {
     // App
@@ -132,6 +206,8 @@ const translations = {
     "transfer.send": "Send",
     "transfer.sendFiles": "File",
     "transfer.sending": "Sending...",
+    "transfer.resendAuto": "Automatic resend",
+    "transfer.resendManual": "Resend (select file)",
     
     // Progress
     "progress.sending": "Sending",
@@ -150,6 +226,8 @@ const translations = {
     "dialog.reject": "Reject",
     "dialog.acceptAll": "Accept All",
     "dialog.rejectAll": "Reject All",
+    "dialog.confirmClearHistory": "Are you sure you want to delete all items from the history? This action cannot be undone.",
+    "dialog.cancel": "Cancel",
     
     // Toasts
     "toast.filesAdded": "files added to list",
@@ -165,6 +243,9 @@ const translations = {
     "toast.sessionRestored": "Session restored - your chat state has been recovered",
     "toast.filesWereSelected": "You had selected",
     "toast.pleaseReselectFiles": "Please reselect your files to continue.",
+    "toast.resendSuccess": "resent successfully!",
+    "toast.deviceNotConnected": "Device not connected",
+    "toast.selectOriginalFile": "Select the original file to resend",
     
     // Languages
     "lang.italian": "Italiano",
@@ -175,7 +256,74 @@ const translations = {
     "chat.noMessages": "No messages",
     "chat.startConversation": "Start a conversation",
     "chat.typeMessage": "Type a message...",
-    "chat.title": "Chat"
+    "chat.title": "Chat",
+    
+    // History
+    "history.title": "History",
+    "history.transferHistory": "Transfer History",
+    "history.allTransfers": "All transfers",
+    "history.sentOnly": "Sent only",
+    "history.receivedOnly": "Received only",
+    "history.encryptedOnly": "Encrypted only",
+    "history.noTransfers": "No transfers in history",
+    "history.noTransfersFiltered": "No transfers",
+    "history.noTransfersCompleted": "No transfers completed",
+    "history.completedWillAppear": "Completed transfers will appear here",
+    "history.removeFromHistory": "Remove from history",
+    "history.clearAll": "Clear all",
+    "history.cleared": "History cleared completely",
+    "history.today": "Today",
+    "history.yesterday": "Yesterday",
+    "history.transfers": "transfers",
+    "history.transfer": "transfer",
+    "history.filtered": "filtered",
+    
+    // File types and misc
+    "file.element": "item",
+    "file.elements": "items",
+    "file.folder": "Folder",
+    "file.file": "File",
+    "file.files": "files",
+    "file.encrypted": "encrypted",
+    "file.encrypted.plural": "encrypted",
+    "file.unknown": "Unknown",
+    "file.type": "Type:",
+    "file.modified": "Modified:",
+    "file.preview": "File Preview",
+    "file.unknownDevice": "Unknown Device",
+    
+    // Encryption
+    "encryption.endToEnd": "End-to-End Encryption",
+    "encryption.passwordPlaceholder": "Password for encryption (optional)",
+    "encryption.enabledDescription": "Files will be encrypted before sending. The recipient will need to enter the same password.",
+    "encryption.disabledDescription": "Files will be sent without additional encryption.",
+    "encryption.fileEncrypted": "Encrypted File",
+    "encryption.receivedEncrypted": "You received an encrypted file:",
+    "encryption.enterPassword": "Enter the password to decrypt and download the file:",
+    "encryption.attentionAttempts": "Warning: Attempt remaining:",
+    "encryption.attentionAttemptsPlural": "Warning: Attempts remaining:",
+    "encryption.passwordPlaceholderDecrypt": "Decryption password",
+    "encryption.decryptAndDownload": "Decrypt and Download",
+    "encryption.cancel": "Cancel",
+    "encryption.success": "File decrypted and downloaded successfully!",
+    "encryption.wrongPassword": "Wrong password. Remaining",
+    "encryption.wrongPasswordSingular": "attempt",
+    "encryption.wrongPasswordPlural": "attempts",
+    "encryption.tooManyAttempts": "Too many wrong attempts. File discarded.",
+    "encryption.error": "Decryption error. Remaining",
+    
+    // Messages and notifications
+    "message.folderAdded": "folder added",
+    "message.foldersAdded": "folders added",
+    "message.fileAdded": "file added",
+    "message.filesAdded": "files added",
+    "message.and": "and",
+    "message.thisFile": "this file",
+    
+    // Misc
+    "misc.devices": "Devices",
+    "misc.reconnecting": "Reconnecting...",
+    "misc.total": "Total"
   }
 }
 
