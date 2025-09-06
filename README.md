@@ -15,6 +15,8 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **Auto-riconnessione** dispositivi con selezione automatica
 - **Cronologia trasferimenti completa** - Traccia tutti i file inviati/ricevuti con filtri
 - **Sistema di resend intelligente** - Reinvia file automaticamente dai dati salvati
+- **Trasferimenti ottimizzati** - Chunking dinamico e compressione intelligente  
+- **Velocità adattiva** - Dimensione chunk ottimale basata sulla velocità di rete
 - **Notifiche audio sintetiche** - Suoni distintivi per ogni tipo di evento
 - Funziona solo nella rete locale per sicurezza
 - Barre di progresso sincronizzate in tempo reale con animazioni fluide
@@ -22,7 +24,7 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - Nomi dispositivi personalizzabili
 - **Supporto multilingue** - Italiano/Inglese con rilevamento automatico
 - **Tema scuro/chiaro** - Con rilevamento preferenze sistema
-- **Trasferimento batch** - Invio di file multipli con popup unificato
+- **Trasferimento batch con ZIP** - File multipli compressi automaticamente in un archivio
 - **Design moderno** - Interfaccia bento-style con shadcn/ui e font Silkscreen
 - **UI non-scrollabile** con scroll interno nelle aree necessarie
 
@@ -37,12 +39,14 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **Crittografia**: Abilita il toggle "Crittografia End-to-End" e inserisci una password opzionale
 - **File criptati**: I file criptati vengono scaricati con una password (3 tentativi massimi)
 - **File multipli**: Aggiungi più file e cartelle alla coda prima di inviare
-- **Accetta/Rifiuta**: Rispondi alle richieste di trasferimento (popup unificato per file multipli)
+- **Trasferimento ZIP**: I file multipli vengono compressi in un archivio ZIP senza perdita di qualità
+- **Accetta/Rifiuta**: Rispondi alle richieste di trasferimento con anteprima completa dei file
 - **Notifiche messaggi**: Vedi i badge rossi per messaggi non letti
 - **Persistenza stato**: L'app ricorda dispositivo selezionato, chat aperta e testo in corso
 - **Gestione disconnessioni**: I dispositivi restano selezionati per 4 secondi durante disconnessioni
 - **Cronologia**: Accedi alla cronologia completa con il pulsante History in basso nella sidebar
 - **Resend file**: Reinvia file dalla cronologia con un click (icona verde = automatico, blu = seleziona file)
+- **Trasferimenti veloci**: Velocità ottimizzata con chunking adattivo (4KB-1MB) e compressione automatica
 - **Notifiche audio**: Senti suoni distintivi per messaggi, richieste file, successi ed errori
 - **Rinomina dispositivo**: Clicca l'icona matita accanto al nome
 - **Cambia lingua**: Usa il toggle 🇮🇹/🇺🇸 nell'header
@@ -56,6 +60,9 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **Sistema decrittografia**: Gestione intelligente della decrittografia con tentativi limitati (3 max)
 - **Cronologia trasferimenti**: Sistema completo di tracking con filtri (tutti/inviati/ricevuti/criptati)
 - **Resend intelligente**: Reinvio automatico di file piccoli (<5MB) dai dati salvati in localStorage
+- **Transfer ottimizzati**: Chunking dinamico (4KB-1MB) che si adatta automaticamente alla velocità di rete
+- **Compressione intelligente**: File di testo >1MB vengono compressi automaticamente prima del trasferimento
+- **Trasferimenti paralleli**: Invio simultaneo di massimo 3 file per velocizzare batch transfer
 - **Notifiche audio**: Sistema di suoni sintetici per eventi (messaggi, richieste, successi, errori)
 - **Notifiche persistenti**: I messaggi non letti sopravvivono al refresh della pagina
 - **Gestione disconnessioni intelligente**: Grace period di 4 secondi con UI trasparente
@@ -63,7 +70,8 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **Persistenza sessione**: Ripristina dispositivo selezionato, stato chat e testo in corso
 - **Drag & Drop avanzato**: Trascina file e cartelle direttamente nell'area di upload
 - **Multi-item**: Selezione e invio di file e cartelle contemporaneamente con coda unificata
-- **Batch Transfer**: File e cartelle multipli vengono presentati in un unico popup al destinatario
+- **Batch Transfer ZIP**: File e cartelle multipli compressi automaticamente in archivio ZIP
+- **Popup unificato**: Anteprima completa dei file con accettazione singola per tutti gli elementi
 - **Progresso animato**: Monitoraggio trasferimento con animazioni fluide su entrambi i dispositivi
 - **Connessione diretta**: Nessun dato passa attraverso server esterni
 - **Layout sidebar**: Menu completo a sinistra, area trasferimento e chat a destra
@@ -136,7 +144,8 @@ GavaDrop/
 │   │   ├── encryption.ts        # Sistema crittografia AES-GCM con PBKDF2
 │   │   ├── folder-utils.ts      # Gestione cartelle e compressione ZIP
 │   │   ├── history-utils.ts     # Sistema cronologia e persistenza file per resend
-│   │   └── notification-sounds.ts # Sistema notifiche audio sintetiche
+│   │   ├── notification-sounds.ts # Sistema notifiche audio sintetiche
+│   │   └── transfer-optimizer.ts # Ottimizzazione trasferimenti e compressione
 │   └── lib/                     # Utilità generali
 │       └── utils.ts             # Funzioni helper
 ├── public/                      # Asset statici
@@ -147,7 +156,7 @@ GavaDrop/
 ├── tsconfig.json               # Configurazione TypeScript
 ├── next.config.ts              # Configurazione Next.js
 ├── tailwind.config.ts          # Configurazione Tailwind CSS
-├── UPDATE.md                   # Cronologia aggiornamenti (v0.9.3)
+├── UPDATE.md                   # Cronologia aggiornamenti (v0.9.4)
 └── uploads/                    # File temporanei (ignorato da git)
 ```
 

@@ -67,8 +67,9 @@ const translations = {
     "dialog.total": "Totale",
     "dialog.accept": "Accetta",
     "dialog.reject": "Rifiuta",
-    "dialog.acceptAll": "Accetta Tutto",
-    "dialog.rejectAll": "Rifiuta Tutto",
+    "dialog.acceptAll": "Accetta Tutto (ZIP)",
+    "dialog.rejectAll": "Rifiuta Tutto", 
+    "dialog.zipInfo": "I file verranno compressi in un unico archivio ZIP",
     "dialog.confirmClearHistory": "Sei sicuro di voler eliminare tutti gli elementi dalla cronologia? Questa azione non può essere annullata.",
     "dialog.cancel": "Annulla",
     
@@ -224,8 +225,9 @@ const translations = {
     "dialog.total": "Total",
     "dialog.accept": "Accept",
     "dialog.reject": "Reject",
-    "dialog.acceptAll": "Accept All",
+    "dialog.acceptAll": "Accept All (ZIP)",
     "dialog.rejectAll": "Reject All",
+    "dialog.zipInfo": "Files will be compressed into a single ZIP archive",
     "dialog.confirmClearHistory": "Are you sure you want to delete all items from the history? This action cannot be undone.",
     "dialog.cancel": "Cancel",
     

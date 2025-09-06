@@ -63,6 +63,7 @@ export default function Home() {
   useEffect(() => {
     const handleFirstInteraction = () => {
       initializeAudioContext();
+      
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('keydown', handleFirstInteraction);
     };
@@ -1619,10 +1620,13 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="bg-muted p-3 rounded-lg">
+          <div className="bg-muted p-3 rounded-lg space-y-2">
             <div className="text-sm text-foreground">
               <strong>{t("dialog.total")}:</strong> {incomingBatchRequest?.files.length} {t("dialog.files")} 
               ({incomingBatchRequest ? formatFileSize(incomingBatchRequest.files.reduce((total, file) => total + file.fileSize, 0)) : ''})
+            </div>
+            <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950 p-2 rounded border-l-2 border-blue-400">
+              📦 {t("dialog.zipInfo")}
             </div>
           </div>
 

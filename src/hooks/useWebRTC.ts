@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { TransferOptimizer, CompressionHelper } from '@/utils/transfer-optimizer';
+import { playNotificationSound } from '@/utils/notification-sounds';
+import JSZip from 'jszip';
 
 export interface Peer {
   deviceId: string;
@@ -27,6 +30,7 @@ export interface Message {
 interface WebRTCConnection {
   peerConnection: RTCPeerConnection;
   dataChannel?: RTCDataChannel;
+  optimizer?: TransferOptimizer;
 }
 
 export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string, relativePath: string, fromSocketId: string) => boolean) => {
@@ -279,7 +283,8 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
 
         connection = {
           peerConnection,
-          dataChannel
+          dataChannel,
+          optimizer: new TransferOptimizer()
         };
         
         connections.current.set(targetSocketId, connection);
@@ -345,8 +350,12 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       throw new Error('Data channel not ready');
     }
 
-    console.log('Starting file transfer...');
+    console.log('Starting optimized file transfer...');
     const dataChannel = conn.dataChannel;
+    const optimizer = conn.optimizer || new TransferOptimizer();
+    
+    // Reset optimizer for new transfer
+    optimizer.reset();
     
     setTransferProgress({
       socketId: targetSocketId,
@@ -355,46 +364,96 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       type: 'sending'
     });
     
+    // Check if we should compress the file
+    let fileToSend = file;
+    let isCompressed = false;
+    
+    if (CompressionHelper.shouldCompress(file)) {
+      console.log('Compressing file before transfer...');
+      const reader = new FileReader();
+      const textContent = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+      
+      const compressed = await CompressionHelper.compressText(textContent);
+      const arrayBuffer = new ArrayBuffer(compressed.byteLength);
+      const view = new Uint8Array(arrayBuffer);
+      view.set(compressed);
+      fileToSend = new File([arrayBuffer], file.name + '.gz', { type: 'application/gzip' });
+      isCompressed = true;
+      console.log(`File compressed: ${file.size} -> ${fileToSend.size} bytes`);
+    }
+    
     dataChannel.send(JSON.stringify({
       type: 'file-info',
       fileName: file.name,
-      fileSize: file.size,
-      relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
+      fileSize: fileToSend.size,
+      originalSize: file.size,
+      relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+      compressed: isCompressed
     }));
 
-    const chunkSize = 16384;
     let offset = 0;
+    const startTime = Date.now();
 
     const sendChunk = async () => {
-      const chunk = file.slice(offset, offset + chunkSize);
+      // Get optimal chunk size from optimizer
+      const chunkSize = optimizer.calculateOptimalChunkSize();
+      const chunk = fileToSend.slice(offset, offset + chunkSize);
       const arrayBuffer = await chunk.arrayBuffer();
       
       if (dataChannel.readyState === 'open') {
         dataChannel.send(arrayBuffer);
+        
+        // Update optimizer metrics
+        optimizer.updateMetrics(arrayBuffer.byteLength);
+        
         offset += chunkSize;
+        const progress = Math.min((offset / fileToSend.size) * 100, 100);
+        const currentSpeed = optimizer.getCurrentSpeed();
+        const eta = optimizer.getEstimatedTimeRemaining(fileToSend.size - offset);
         
-        const progress = Math.min((offset / file.size) * 100, 100);
-        setTransferProgress(prev => prev ? { ...prev, progress } : null);
+        setTransferProgress(prev => prev ? { 
+          ...prev, 
+          progress,
+          speed: currentSpeed,
+          eta: eta
+        } : null);
         
-        // Send progress update to receiver
+        // Send enhanced progress update to receiver
         socket.emit('transfer-progress', {
           target: targetSocketId,
           progress,
-          fileName: file.name
+          fileName: file.name,
+          speed: currentSpeed,
+          eta: eta,
+          chunkSize: arrayBuffer.byteLength
         });
 
-        if (offset < file.size) {
-          setTimeout(sendChunk, 10);
+        if (offset < fileToSend.size) {
+          // Dynamic delay based on network performance
+          const delay = currentSpeed > 1000000 ? 5 : currentSpeed > 500000 ? 10 : 15;
+          setTimeout(sendChunk, delay);
         } else {
           dataChannel.send(JSON.stringify({ type: 'file-complete' }));
+          
+          // Show completion stats
+          const metrics = optimizer.getMetrics();
+          console.log('Transfer completed:', {
+            totalTime: Date.now() - startTime,
+            averageSpeed: metrics.averageSpeed,
+            efficiency: metrics.efficiency
+          });
+          
+          // Play transfer complete sound
+          playNotificationSound('success');
           
           // Keep progress at 100% for a moment to show completion, then clear
           setTimeout(() => {
             setTransferProgress(null);
-          }, 2500); // 1s delay + 1s animation + 0.5s buffer
-          
-          // Keep connection open for future transfers  
-          // Don't close the connection here anymore
+          }, 2500);
         }
       }
     };
@@ -415,6 +474,204 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       throw error;
     }
   }, [socket, deviceInfo]);
+
+  // Send file directly without requesting acceptance (for batch ZIP files)
+  const sendFileDirectly = useCallback(async (file: File, targetSocketId: string) => {
+    console.log('sendFileDirectly called for:', file.name, 'to:', targetSocketId);
+    let connection = connections.current.get(targetSocketId);
+    
+    try {
+      if (!connection || !connection.dataChannel) {
+        console.log('Creating new connection...');
+        if (!socket) {
+          console.error('Socket not connected');
+          throw new Error('Socket not connected');
+        }
+
+        const peerConnection = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+
+        peerConnection.onicecandidate = (event) => {
+          console.log('ICE candidate generated');
+          if (event.candidate && socket) {
+            socket.emit('webrtc-ice-candidate', {
+              target: targetSocketId,
+              candidate: event.candidate
+            });
+          }
+        };
+
+        const dataChannel = peerConnection.createDataChannel('fileTransfer', {
+          ordered: true
+        });
+
+        dataChannel.onopen = () => {
+          console.log('Data channel opened with', targetSocketId);
+        };
+
+        connection = {
+          peerConnection,
+          dataChannel,
+          optimizer: new TransferOptimizer()
+        };
+        
+        connections.current.set(targetSocketId, connection);
+
+        console.log('Creating offer...');
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        console.log('Sending offer to', targetSocketId);
+        socket.emit('webrtc-offer', {
+          target: targetSocketId,
+          offer: offer
+        });
+
+        console.log('Waiting for data channel to open...');
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Data channel timeout')), 10000);
+          dataChannel.onopen = () => {
+            clearTimeout(timeout);
+            console.log('Data channel ready!');
+            resolve();
+          };
+        });
+      }
+
+      // Skip file request - send directly since batch was already accepted
+      const conn = connections.current.get(targetSocketId);
+      if (!conn?.dataChannel || conn.dataChannel.readyState !== 'open') {
+        console.error('Data channel not ready, state:', conn?.dataChannel?.readyState);
+        throw new Error('Data channel not ready');
+      }
+
+      console.log('Starting direct file transfer...');
+      const dataChannel = conn.dataChannel;
+      const optimizer = conn.optimizer || new TransferOptimizer();
+      
+      // Reset optimizer for new transfer
+      optimizer.reset();
+      
+      setTransferProgress({
+        socketId: targetSocketId,
+        fileName: file.name,
+        progress: 0,
+        type: 'sending'
+      });
+      
+      // Check if we should compress the file
+      let fileToSend = file;
+      let isCompressed = false;
+      
+      if (CompressionHelper.shouldCompress(file)) {
+        console.log('Compressing file before transfer...');
+        const reader = new FileReader();
+        const textContent = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsText(file);
+        });
+        
+        const compressed = await CompressionHelper.compressText(textContent);
+        const arrayBuffer = new ArrayBuffer(compressed.byteLength);
+        const view = new Uint8Array(arrayBuffer);
+        view.set(compressed);
+        fileToSend = new File([arrayBuffer], file.name + '.gz', { type: 'application/gzip' });
+        isCompressed = true;
+        console.log(`File compressed: ${file.size} -> ${fileToSend.size} bytes`);
+      }
+      
+      dataChannel.send(JSON.stringify({
+        type: 'file-info',
+        fileName: file.name,
+        fileSize: fileToSend.size,
+        originalSize: file.size,
+        relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+        compressed: isCompressed
+      }));
+
+      let offset = 0;
+      const startTime = Date.now();
+
+      const sendChunk = async () => {
+        // Get optimal chunk size from optimizer
+        const chunkSize = optimizer.calculateOptimalChunkSize();
+        const chunk = fileToSend.slice(offset, offset + chunkSize);
+        const arrayBuffer = await chunk.arrayBuffer();
+        
+        if (dataChannel.readyState === 'open') {
+          dataChannel.send(arrayBuffer);
+          
+          // Update optimizer metrics
+          optimizer.updateMetrics(arrayBuffer.byteLength);
+          
+          offset += chunkSize;
+          const progress = Math.min((offset / fileToSend.size) * 100, 100);
+          const currentSpeed = optimizer.getCurrentSpeed();
+          const eta = optimizer.getEstimatedTimeRemaining(fileToSend.size - offset);
+          
+          setTransferProgress(prev => prev ? { 
+            ...prev, 
+            progress,
+            speed: currentSpeed,
+            eta: eta
+          } : null);
+          
+          // Send enhanced progress update to receiver
+          if (socket) {
+            socket.emit('transfer-progress', {
+              target: targetSocketId,
+              progress,
+              fileName: file.name,
+              speed: currentSpeed,
+              eta: eta,
+              chunkSize: arrayBuffer.byteLength
+            });
+          }
+
+          if (offset < fileToSend.size) {
+            // Dynamic delay based on network performance
+            const delay = currentSpeed > 1000000 ? 5 : currentSpeed > 500000 ? 10 : 15;
+            setTimeout(sendChunk, delay);
+          } else {
+            dataChannel.send(JSON.stringify({ type: 'file-complete' }));
+            
+            // Show completion stats
+            const metrics = optimizer.getMetrics();
+            console.log('Direct transfer completed:', {
+              totalTime: Date.now() - startTime,
+              averageSpeed: metrics.averageSpeed,
+              efficiency: metrics.efficiency
+            });
+            
+            // Play transfer complete sound
+            playNotificationSound('success');
+            
+            // Keep progress at 100% for a moment to show completion, then clear
+            setTimeout(() => {
+              setTransferProgress(null);
+            }, 2500);
+          }
+        }
+      };
+
+        sendChunk();
+    } catch (error: unknown) {
+      setTransferProgress(null);
+
+      // Only clean up connection on non-rejection errors
+      if ((error as Error).message !== 'File transfer rejected') {
+        const connection = connections.current.get(targetSocketId);
+        if (connection) {
+          connection.peerConnection.close();
+          connections.current.delete(targetSocketId);
+        }
+      }
+
+      throw error;
+    }
+  }, [socket]);
 
   const sendBatchFiles = useCallback(async (files: File[], targetSocketId: string) => {
     console.log('sendBatchFiles called with:', files.length, 'files, to:', targetSocketId);
@@ -463,11 +720,40 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       throw new Error('Batch file transfer rejected');
     }
 
-    // If accepted, send all files sequentially
+    // If accepted, compress all files into a ZIP and send as single file
+    console.log('Creating ZIP archive for batch transfer...');
+    
+    const zip = new JSZip();
+    const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+    const zipFileName = `GavaDrop_Files_${timestamp}.zip`;
+    
+    // Add all files to ZIP, preserving folder structure
     for (const file of files) {
-      await sendFile(file, targetSocketId);
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+      const arrayBuffer = await file.arrayBuffer();
+      zip.file(relativePath, arrayBuffer);
     }
-  }, [socket, deviceInfo, sendFile]);
+    
+    // Generate ZIP blob
+    const zipBlob = await zip.generateAsync({ 
+      type: 'blob', 
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 } // Balanced compression for quality vs speed
+    });
+    
+    // Create File object from ZIP blob
+    const zipFile = new File([zipBlob], zipFileName, { 
+      type: 'application/zip',
+      lastModified: Date.now()
+    });
+    
+    console.log(`ZIP created: ${zipFileName} (${zipFile.size} bytes from ${files.length} files)`);
+    
+    // Send the ZIP file directly without requesting acceptance (already accepted via batch)
+    await sendFileDirectly(zipFile, targetSocketId);
+    
+    console.log('Batch transfer completed - ZIP sent successfully');
+  }, [socket, deviceInfo, sendFileDirectly]);
 
   useEffect(() => {
     const timers = disconnectionTimers.current;
@@ -555,6 +841,9 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
                     newMap.set(fromPeer.clientId, currentCount + 1);
                     return newMap;
                   });
+                  
+                  // Play message notification sound
+                  playNotificationSound('message');
                 } else {
                   console.error('Could not find fromPeer with clientId for WebRTC message:', data.from, currentPeers);
                 }
@@ -611,6 +900,9 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
               
               setIncomingFile(null);
               
+              // Play file received sound
+              playNotificationSound('fileComplete');
+              
               // Keep progress at 100% for a moment to show completion, then clear
               setTimeout(() => {
                 setTransferProgress(null);
@@ -636,7 +928,8 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
 
       const connection: WebRTCConnection = {
         peerConnection,
-        dataChannel: undefined
+        dataChannel: undefined,
+        optimizer: new TransferOptimizer()
       };
       
       connections.current.set(data.from, connection);
@@ -716,6 +1009,8 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       setPeers(prev => {
         const leavingPeer = prev.find(p => p.socketId === data.socketId);
         if (leavingPeer) {
+          // Device disconnected
+          console.log('Device disconnected:', leavingPeer.deviceName);
           // Start 4-second grace period
           console.log('Starting 4-second grace period for peer:', leavingPeer.deviceName, leavingPeer.clientId);
           setDisconnectedPeers(prevDisconnected => {
@@ -857,6 +1152,9 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
           newMap.set(fromPeer.clientId, currentCount + 1);
           return newMap;
         });
+        
+        // Play message notification sound
+        playNotificationSound('message');
       } else {
         console.error('Could not find fromPeer with clientId for Socket message:', data.from, peers);
       }
