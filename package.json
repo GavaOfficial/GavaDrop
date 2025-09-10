@@ -82,7 +82,6 @@
   "build": {
     "appId": "com.gavadrop.app",
     "productName": "GavaDrop",
-    "description": "Modern peer-to-peer file sharing with WebRTC and end-to-end encryption",
     "copyright": "Copyright © 2025 GAVA. All rights reserved.",
     "asar": true,
     "directories": {
