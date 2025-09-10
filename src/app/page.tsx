@@ -212,7 +212,7 @@ export default function Home() {
     
     // Update previous counts
     prevUnreadCountsRef.current = new Map(unreadCounts);
-  }, [unreadCounts, messages]);
+  }, [unreadCounts, messages, t]);
 
   // Ref to store current peers for notification handler
   const peersRef = useRef(peers);

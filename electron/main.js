@@ -168,7 +168,8 @@ app.whenReady().then(() => {
         const type = mime.get(ext) || 'application/octet-stream';
         res.setHeader('Content-Type', type);
         fs.createReadStream(filePath).pipe(res);
-      } catch (e) {
+      } catch (error) {
+        console.error('Server error:', error);
         res.statusCode = 500; res.end('Server Error');
       }
     });
