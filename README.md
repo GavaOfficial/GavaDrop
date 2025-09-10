@@ -9,6 +9,11 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **Anteprime file integrate** - Visualizza immagini e icone per tutti i tipi di file
 - **Crittografia end-to-end opzionale** - AES-GCM 256-bit con derivazione PBKDF2
 - **Chat in tempo reale** tra dispositivi connessi
+- **Notifiche native desktop** - Notifiche sistema con pulsanti Accept/Reject
+- **Pulsanti di azione integrati** - Accetta/Rifiuta direttamente dalle notifiche
+- **App desktop Electron** - Applicazione nativa per macOS, Windows e Linux
+- **Integrazione sistema operativo** - Notifiche native e suoni di sistema
+- **Workflow senza interruzioni** - Rispondi ai trasferimenti senza aprire l'app
 - **Notifiche messaggi non letti** persistenti
 - **Persistenza di sessione** - ripristina lo stato dopo refresh
 - **Gestione disconnessione** con grazia period di 4 secondi
@@ -40,6 +45,10 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **File criptati**: I file criptati vengono scaricati con una password (3 tentativi massimi)
 - **File multipli**: Aggiungi più file e cartelle alla coda prima di inviare
 - **Trasferimento ZIP**: I file multipli vengono compressi in un archivio ZIP senza perdita di qualità
+- **Notifiche native**: Ricevi notifiche di sistema con pulsanti "Accetta" e "Rifiuta"
+- **Accetta dalle notifiche**: Clicca "Accetta" o "Rifiuta" direttamente dalla notifica del sistema
+- **App desktop**: Usa l'app Electron per notifiche native complete su desktop
+- **Multitasking**: Rispondi ai trasferimenti senza dover aprire/tornare all'applicazione
 - **Accetta/Rifiuta**: Rispondi alle richieste di trasferimento con anteprima completa dei file
 - **Notifiche messaggi**: Vedi i badge rossi per messaggi non letti
 - **Persistenza stato**: L'app ricorda dispositivo selezionato, chat aperta e testo in corso
@@ -90,8 +99,11 @@ cd GavaDrop
 # Installa dipendenze
 npm install
 
-# Avvia il server di sviluppo frontend
+# Avvia in modalità web (browser)
 npm run dev
+
+# Avvia in modalità desktop (Electron)
+npm run dev:desktop
 
 # Avvia il server di signaling (terminale separato)
 node server.js
@@ -108,12 +120,14 @@ http://localhost:3002
 
 ### Produzione
 ```bash
-# Export statico dell'applicazione (cartella `out/`)
-npm run export
+# Build per web (cartella `out/`)
+npm run build
 
-# Servi i file generati con un qualsiasi server statico
-# (esempio con `serve`)
-npx serve out
+# Build desktop app (cartella `dist/`)
+npm run build:desktop
+
+# Avvia app desktop in produzione
+npm run start:desktop
 
 # Server di signaling
 node server.js
@@ -144,19 +158,27 @@ GavaDrop/
 │   │   ├── encryption.ts        # Sistema crittografia AES-GCM con PBKDF2
 │   │   ├── folder-utils.ts      # Gestione cartelle e compressione ZIP
 │   │   ├── history-utils.ts     # Sistema cronologia e persistenza file per resend
+│   │   ├── native-notify.ts     # Sistema notifiche native con action buttons
 │   │   ├── notification-sounds.ts # Sistema notifiche audio sintetiche
 │   │   └── transfer-optimizer.ts # Ottimizzazione trasferimenti e compressione
+│   ├── types/                   # Definizioni TypeScript
+│   │   └── electron.d.ts        # Tipi per API Electron e notifiche native
 │   └── lib/                     # Utilità generali
 │       └── utils.ts             # Funzioni helper
+├── electron/                    # App desktop Electron
+│   ├── main.js                  # Processo principale con notifiche native
+│   └── preload.js               # Script preload con API sicure
 ├── public/                      # Asset statici
 │   ├── icon.png                 # Icona applicazione personalizzata
 │   └── Silkscreen/              # Font pixel Silkscreen per header
+├── resources/                   # Risorse per build desktop
+│   └── icons/                   # Icone app per diverse piattaforme
 ├── server.js                    # Server di signaling Socket.IO con chat support
-├── package.json                 # Dipendenze e scripts
+├── package.json                 # Dipendenze e scripts (v0.9.5)
 ├── tsconfig.json               # Configurazione TypeScript
 ├── next.config.ts              # Configurazione Next.js
 ├── tailwind.config.ts          # Configurazione Tailwind CSS
-├── UPDATE.md                   # Cronologia aggiornamenti (v0.9.4)
+├── UPDATE.md                   # Cronologia aggiornamenti (v0.9.5)
 └── uploads/                    # File temporanei (ignorato da git)
 ```
 
@@ -173,6 +195,13 @@ GavaDrop/
 - **React Context** - Gestione stato multilingue e tema
 - **React Hooks** - Gestione stato e side effects
 - **Silkscreen Font** - Font pixel personalizzato per header
+
+### Desktop App
+- **Electron 32** - Framework per app desktop cross-platform
+- **IPC (Inter-Process Communication)** - Comunicazione sicura main/renderer
+- **Native notifications** - Sistema notifiche con action buttons
+- **Context bridge** - API sicure per renderer process
+- **Electron Builder** - Build e distribuzione per macOS/Windows/Linux
 
 ### Backend
 - **Node.js** - Runtime server

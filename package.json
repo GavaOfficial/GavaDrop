@@ -1,10 +1,39 @@
 {
   "name": "gavadrop",
-  "version": "0.9.0",
+  "version": "0.9.5",
+  "description": "Modern peer-to-peer file sharing application with WebRTC, real-time chat, and end-to-end encryption for local networks",
+  "author": {
+    "name": "GAVA",
+    "email": "gava@gavatech.org"
+  },
+  "homepage": "https://github.com/GavaOfficial/GavaDrop",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GavaOfficial/GavaDrop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GavaOfficial/GavaDrop/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "file-sharing",
+    "p2p",
+    "webrtc",
+    "electron",
+    "chat",
+    "encryption",
+    "local-network",
+    "file-transfer"
+  ],
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:desktop": "concurrently -k -n NEXT,ELECTRON -c blue,green \"next dev --turbopack\" \"wait-on tcp:3000 && env -u ELECTRON_RUN_AS_NODE NODE_ENV=development electron .\"",
     "build": "next build",
+    "build:desktop": "next build && electron-builder",
+    "start:desktop": "env -u ELECTRON_RUN_AS_NODE NODE_ENV=production electron .",
+    "dist": "npm run build:desktop",
     "start": "next start",
     "lint": "eslint",
     "export": "next build"
@@ -39,10 +68,49 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^32.2.8",
+    "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
+    "wait-on": "^8.0.1",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.7",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.gavadrop.app",
+    "productName": "GavaDrop",
+    "description": "Modern peer-to-peer file sharing with WebRTC and end-to-end encryption",
+    "copyright": "Copyright © 2025 GAVA. All rights reserved.",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "out",
+        "to": "out"
+      }
+    ],
+    "mac": {
+      "icon": "resources/icons/icon.icns",
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "icon": "resources/icons/icon.ico",
+      "target": ["nsis", "zip"]
+    },
+    "linux": {
+      "icon": "resources/icons/icon.png",
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    }
   }
 }

@@ -1,6 +1,72 @@
 # GavaDrop - Update History
 
-## Version 0.9.4 (Current)
+## Version 0.9.5 (Current)
+
+### Advanced Native Desktop Notifications System
+- **Electron notification integration** with native system notifications
+  - Cross-platform native notification support for macOS, Windows, and Linux
+  - Action buttons in notifications for direct accept/reject file transfers
+  - Native notification sounds and visual integration with system preferences
+  - Smart fallback to web notifications for browser-based usage
+  - Enhanced user experience with OS-integrated notification management
+
+### Interactive Notification Action Buttons
+- **Direct action handling** from system notifications
+  - Accept/Reject buttons directly in notification popups
+  - Immediate file transfer response without opening the application
+  - Native notification action event handling with proper cleanup
+  - Cross-platform action button support with platform-specific implementations
+  - Enhanced workflow eliminating need to switch to application for file acceptance
+
+### Enhanced Desktop Application Architecture
+- **Complete Electron application structure** with proper IPC communication
+  - Main process notification management with action button support
+  - Preload script with secure context bridge for notification APIs
+  - TypeScript definitions for Electron APIs with proper type safety
+  - Enhanced window management with notification integration
+  - Native desktop integration with system tray and notification center
+
+### Advanced Notification Management System
+- **Intelligent notification lifecycle** with automatic cleanup
+  - Request-based notification tracking with unique identifier system
+  - Automatic notification dismissal on timeout (30 seconds)
+  - Smart cleanup when accepting/rejecting from in-app dialogs
+  - Cross-platform notification state synchronization
+  - Memory leak prevention with proper notification disposal
+
+### Cross-Platform Desktop Compatibility
+- **Universal desktop notification support** across operating systems
+  - macOS notification center integration with action buttons
+  - Windows toast notification support with native styling
+  - Linux desktop notification compatibility with system preferences
+  - Automatic platform detection with appropriate notification APIs
+  - Graceful degradation for unsupported platforms
+
+### Enhanced User Experience & Workflow
+- **Streamlined file transfer workflow** with native system integration
+  - Reduced friction with direct notification-based accept/reject
+  - Enhanced multitasking support - respond to transfers without app focus
+  - Native notification sounds synchronized with system audio preferences
+  - Improved accessibility with system-integrated notification features
+  - Seamless integration with existing in-app notification duplicates eliminated
+
+### Technical Architecture Improvements
+- **Robust IPC communication** between main and renderer processes
+  - Secure notification API exposure through context bridge
+  - Proper event handling for notification actions with cleanup
+  - Enhanced error handling for notification system failures
+  - Memory-efficient notification tracking and disposal
+  - Type-safe communication interfaces for all notification operations
+
+### Developer Experience Enhancements
+- **Comprehensive notification debugging** and development tools
+  - Detailed logging for notification lifecycle events
+  - Proper error reporting for notification system issues
+  - Development-friendly fallback mechanisms for testing
+  - Clear separation between Electron and web notification systems
+  - Enhanced development workflow with proper TypeScript support
+
+## Version 0.9.4
 
 ### Advanced Transfer Performance Optimization
 - **Dynamic chunking system** with intelligent size adaptation (4KB to 1MB)

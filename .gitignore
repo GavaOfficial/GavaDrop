@@ -94,3 +94,49 @@ temp/
 # Logs (generated files)
 *.log
 logs/
+
+# Electron Desktop App (build artifacts and cache)
+/dist/
+/electron-builder-cache/
+/release/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.tar.gz
+*.zip
+
+# Electron dependencies and cache
+/electron/node_modules/
+electron-builder.env
+
+# macOS specific Electron files
+.app/
+*.app/
+
+# Windows specific Electron files
+*.msi
+*.nsis
+
+# Code signing certificates (NEVER commit these)
+*.p12
+*.pfx
+*.cer
+*.crt
+*.key
+*.pem
+code-signing/
+certificates/
+
+# Auto-updater files
+/app-update.yml
+/latest*.yml
+/beta*.yml
+/alpha*.yml
+
+# Electron Forge (if used)
+/.webpack/
+/makers/
+/.vite/

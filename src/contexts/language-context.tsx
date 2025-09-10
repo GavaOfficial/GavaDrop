@@ -90,6 +90,7 @@ const translations = {
     "toast.resendSuccess": "re-inviato con successo!",
     "toast.deviceNotConnected": "Dispositivo non connesso",
     "toast.selectOriginalFile": "Seleziona il file originale per re-inviarlo",
+    "toast.messageFrom": "Messaggio da",
     
     // Languages
     "lang.italian": "Italiano",
@@ -248,6 +249,7 @@ const translations = {
     "toast.resendSuccess": "resent successfully!",
     "toast.deviceNotConnected": "Device not connected",
     "toast.selectOriginalFile": "Select the original file to resend",
+    "toast.messageFrom": "Message from",
     
     // Languages
     "lang.italian": "Italiano",

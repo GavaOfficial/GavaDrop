@@ -1,0 +1,315 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  APP_VERSION: "0.9.5"
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Run Linting
+      run: npm run lint
+
+    - name: Build Next.js Application
+      run: npm run build
+
+    - name: Start Signaling Server (Background)
+      run: |
+        node server.js &
+        sleep 5
+        echo "Signaling server started on port 3002"
+
+  build-web:
+    name: Build Web Application
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build Next.js Application
+      run: npm run build
+
+    - name: Upload Web Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GavaDrop-Web-Build
+        path: out/
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 30
+
+  build-desktop:
+    name: Build ${{ matrix.platform }} Desktop App
+    runs-on: ${{ matrix.os }}
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            installer_ext: AppImage
+          - os: macos-latest
+            platform: macos
+            installer_ext: dmg
+          - os: windows-latest
+            platform: windows
+            installer_ext: exe
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build Next.js Application
+      run: npm run build
+
+    - name: Build Electron App (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        npm run build:desktop
+        echo "Linux build completed"
+        ls -la dist/
+
+    - name: Build Electron App (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        npm run build:desktop
+        echo "macOS build completed"
+        ls -la dist/
+
+    - name: Build Electron App (Windows)
+      if: matrix.platform == 'windows'
+      shell: powershell
+      run: |
+        npm run build:desktop
+        Write-Host "Windows build completed"
+        Get-ChildItem dist/
+
+    - name: Find Desktop App Files
+      shell: bash
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          echo "APP_FILES=$(find dist/ -name "*.AppImage" -o -name "*.deb" | tr '\n' ' ')" >> $GITHUB_ENV
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          echo "APP_FILES=$(find dist/ -name "*.dmg" -o -name "*.zip" | tr '\n' ' ')" >> $GITHUB_ENV
+        elif [ "${{ matrix.platform }}" = "windows" ]; then
+          echo "APP_FILES=$(find dist/ -name "*.exe" -o -name "*.zip" | tr '\n' ' ')" >> $GITHUB_ENV
+        fi
+        echo "Found app files: ${{ env.APP_FILES }}"
+
+    - name: Upload Desktop App Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GavaDrop-Desktop-${{ matrix.platform }}
+        path: |
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.dmg
+          dist/*.exe
+          dist/*.zip
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 30
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Run npm audit
+      run: npm audit --audit-level moderate
+
+    - name: Run Security Scan with Semgrep
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/javascript
+      env:
+        SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      continue-on-error: true
+
+  smoke-test:
+    name: Smoke Test Desktop Apps
+    runs-on: ${{ matrix.os }}
+    needs: build-desktop
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Download Desktop App Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: GavaDrop-Desktop-${{ matrix.platform }}
+        path: dist/
+
+    - name: Verify App Installation (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        echo "Verifying Linux desktop app..."
+        ls -la dist/
+        # Basic file structure verification
+        if [ -f dist/*.AppImage ] || [ -f dist/*.deb ]; then
+          echo "✅ Linux installer found"
+        else
+          echo "❌ No Linux installer found"
+          exit 1
+        fi
+
+    - name: Verify App Installation (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        echo "Verifying macOS desktop app..."
+        ls -la dist/
+        # Basic file structure verification
+        if [ -f dist/*.dmg ] || [ -f dist/*.zip ]; then
+          echo "✅ macOS installer found"
+        else
+          echo "❌ No macOS installer found"
+          exit 1
+        fi
+
+    - name: Verify App Installation (Windows)
+      if: matrix.platform == 'windows'
+      shell: powershell
+      run: |
+        Write-Host "Verifying Windows desktop app..."
+        Get-ChildItem dist/
+        # Basic file structure verification
+        $hasExe = Test-Path "dist/*.exe"
+        $hasZip = Test-Path "dist/*.zip"
+        if ($hasExe -or $hasZip) {
+          Write-Host "✅ Windows installer found"
+        } else {
+          Write-Host "❌ No Windows installer found"
+          exit 1
+        }
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build Application
+      run: npm run build
+
+    - name: Install Lighthouse CI
+      run: npm install -g @lhci/cli@0.12.x
+
+    - name: Start Application Server
+      run: |
+        npm start &
+        sleep 10
+        echo "Application server started"
+
+    - name: Run Lighthouse CI
+      run: |
+        lhci collect --url=http://localhost:3000 --numberOfRuns=3
+        lhci assert
+      continue-on-error: true
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [test, build-web, build-desktop, security-scan, smoke-test, performance-test]
+    if: always()
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Build Status Summary
+      run: |
+        echo "## 🚀 GavaDrop Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status | Platform |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|---------|----------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Tests | ${{ needs.test.result }} | All |" >> $GITHUB_STEP_SUMMARY
+        echo "| Web Build | ${{ needs.build-web.result }} | Web |" >> $GITHUB_STEP_SUMMARY
+        echo "| Desktop Build | ${{ needs.build-desktop.result }} | Linux/macOS/Windows |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Scan | ${{ needs.security-scan.result }} | All |" >> $GITHUB_STEP_SUMMARY
+        echo "| Smoke Tests | ${{ needs.smoke-test.result }} | Desktop |" >> $GITHUB_STEP_SUMMARY
+        echo "| Performance | ${{ needs.performance-test.result }} | Web |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** ${{ env.APP_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

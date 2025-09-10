@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { TransferOptimizer, CompressionHelper } from '@/utils/transfer-optimizer';
 import { playNotificationSound } from '@/utils/notification-sounds';
+import { notifyWithActions } from '@/utils/native-notify';
 import JSZip from 'jszip';
 
 export interface Peer {
@@ -1075,6 +1076,39 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         from: data.fromName,
         socketId: data.from
       });
+
+      // Show notification with Accept/Reject buttons
+      notifyWithActions(`File da ${data.fromName}`, {
+        body: `Vuole inviarti: ${data.fileName} (${(data.fileSize / 1024 / 1024).toFixed(2)} MB)`,
+        actions: [
+          { action: 'accept', title: 'Accetta' },
+          { action: 'reject', title: 'Rifiuta' }
+        ],
+        onAction: (action) => {
+          if (action === 'accept') {
+            // Accept file transfer
+            socketInstance.emit('file-response', { 
+              accepted: true, 
+              target: data.from 
+            });
+            setIncomingFileRequest(null);
+          } else if (action === 'reject') {
+            // Reject file transfer
+            socketInstance.emit('file-response', { 
+              accepted: false, 
+              target: data.from 
+            });
+            setIncomingFileRequest(null);
+          }
+        },
+        onNotificationClick: () => {
+          // Focus window when notification is clicked
+          window.focus();
+        }
+      });
+
+      // Play notification sound
+      playNotificationSound('fileRequest');
     });
 
     socketInstance.on('batch-file-request', (data: { files: {fileName: string, fileSize: number}[], fromName: string, from: string, batchId: string }) => {
@@ -1085,6 +1119,45 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         socketId: data.from,
         batchId: data.batchId
       });
+
+      // Calculate total size
+      const totalSize = data.files.reduce((acc, file) => acc + file.fileSize, 0);
+      const fileCount = data.files.length;
+
+      // Show notification with Accept/Reject buttons for batch transfer
+      notifyWithActions(`File multipli da ${data.fromName}`, {
+        body: `Vuole inviarti ${fileCount} file (${(totalSize / 1024 / 1024).toFixed(2)} MB totali)`,
+        actions: [
+          { action: 'accept', title: 'Accetta tutto' },
+          { action: 'reject', title: 'Rifiuta tutto' }
+        ],
+        onAction: (action) => {
+          if (action === 'accept') {
+            // Accept batch transfer
+            socketInstance.emit('batch-file-response', { 
+              accepted: true, 
+              target: data.from,
+              batchId: data.batchId
+            });
+            setIncomingBatchRequest(null);
+          } else if (action === 'reject') {
+            // Reject batch transfer
+            socketInstance.emit('batch-file-response', { 
+              accepted: false, 
+              target: data.from,
+              batchId: data.batchId
+            });
+            setIncomingBatchRequest(null);
+          }
+        },
+        onNotificationClick: () => {
+          // Focus window when notification is clicked
+          window.focus();
+        }
+      });
+
+      // Play notification sound
+      playNotificationSound('fileRequest');
     });
 
     socketInstance.on('file-response', () => {

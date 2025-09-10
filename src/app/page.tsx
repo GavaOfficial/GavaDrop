@@ -30,6 +30,7 @@ import { groupFilesByFolder, compressFolder } from "@/utils/folder-utils";
 import { TransferHistory } from "@/components/transfer-history";
 import { saveToHistory, saveFileToHistory } from "@/utils/history-utils";
 import { playNotificationSound, initializeAudioContext } from "@/utils/notification-sounds";
+import { notifyNative } from "@/utils/native-notify";
 
 export default function Home() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -162,40 +163,104 @@ export default function Home() {
     }
   }, [receivedFiles, peers]);
 
-  // Play sound for incoming file requests
-  useEffect(() => {
-    if (incomingFileRequest) {
-      playNotificationSound('fileRequest');
-    }
-  }, [incomingFileRequest]);
-
-  // Play sound for incoming batch file requests
-  useEffect(() => {
-    if (incomingBatchRequest) {
-      playNotificationSound('fileRequest');
-    }
-  }, [incomingBatchRequest]);
+  // Note: Sound and native notifications are now handled directly in useWebRTC hook
+  // with action buttons support
 
   // Play sound for new chat messages
   const prevUnreadCountsRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     const prevCounts = prevUnreadCountsRef.current;
     let hasNewMessage = false;
+    let latestMessageInfo: { senderName: string; messageText: string; peerId: string } | null = null;
     
     unreadCounts.forEach((count, peerId) => {
       const prevCount = prevCounts.get(peerId) || 0;
       if (count > prevCount) {
         hasNewMessage = true;
+        // Get the latest message from this peer
+        const peerMessages = messages.get(peerId);
+        if (peerMessages && peerMessages.length > 0) {
+          const newestMessage = peerMessages[peerMessages.length - 1];
+          if (!newestMessage.isOwn) {
+            latestMessageInfo = {
+              senderName: newestMessage.fromName,
+              messageText: newestMessage.text,
+              peerId: peerId
+            };
+          }
+        }
       }
     });
     
     if (hasNewMessage) {
       playNotificationSound('message');
+      if (latestMessageInfo) {
+        // Truncate message if too long
+        const { messageText, senderName, peerId } = latestMessageInfo as { senderName: string; messageText: string; peerId: string };
+        const messagePreview = messageText.length > 50 
+          ? messageText.substring(0, 50) + '...' 
+          : messageText;
+        notifyNative(
+          `${t("toast.messageFrom")} ${senderName}`,
+          messagePreview,
+          peerId
+        );
+      } else {
+        notifyNative(t("toast.newMessage") || 'Nuovo messaggio ricevuto');
+      }
     }
     
     // Update previous counts
     prevUnreadCountsRef.current = new Map(unreadCounts);
-  }, [unreadCounts]);
+  }, [unreadCounts, messages]);
+
+  // Ref to store current peers for notification handler
+  const peersRef = useRef(peers);
+  useEffect(() => {
+    peersRef.current = peers;
+  }, [peers]);
+
+  // Handle notification clicks in Electron - register once at mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI?.onNotificationClick) {
+      const handleNotificationClick = (data: { peerId?: string }) => {
+        console.log('🔔 Notification clicked with data:', data);
+        
+        if (data.peerId) {
+          console.log('📱 Opening chat and trying to select peer...');
+          
+          // Always open chat first
+          setIsChatOpen(true);
+          
+          // Try to find and select the peer using current ref
+          setTimeout(() => {
+            const currentPeers = peersRef.current;
+            const peer = currentPeers.find(p => p.clientId === data.peerId);
+            console.log('👥 Looking for peer with clientId:', data.peerId);
+            console.log('👥 Available peers:', currentPeers);
+            console.log('✅ Found peer:', peer);
+            
+            if (peer) {
+              console.log('🎯 Setting selected peer to socketId:', peer.socketId);
+              setSelectedPeer(peer.socketId);
+            } else {
+              console.log('❌ Peer not found, available clientIds:', currentPeers.map(p => p.clientId));
+            }
+          }, 100);
+        }
+      };
+
+      console.log('📝 Registering notification click handler');
+      window.electronAPI.onNotificationClick(handleNotificationClick);
+
+      return () => {
+        console.log('🧹 Cleaning up notification click handler');
+        if (window.electronAPI?.removeNotificationClickListener) {
+          window.electronAPI.removeNotificationClickListener();
+        }
+      };
+    }
+  }, []); // Empty deps - register once
 
   // Clear file metadata when files are successfully sent or cleared
   const clearSavedFiles = useCallback(() => {
