@@ -70,7 +70,7 @@
     "@types/react-dom": "^19",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
-    "electron": "^32.2.8",
+    "electron": "^35.7.5",
     "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
