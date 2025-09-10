@@ -83,6 +83,7 @@
     "appId": "com.gavadrop.app",
     "productName": "GavaDrop",
     "copyright": "Copyright © 2025 GAVA. All rights reserved.",
+    "publish": null,
     "asar": true,
     "directories": {
       "output": "dist"
