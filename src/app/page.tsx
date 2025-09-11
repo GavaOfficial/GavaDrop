@@ -31,6 +31,11 @@ import { TransferHistory } from "@/components/transfer-history";
 import { saveToHistory, saveFileToHistory } from "@/utils/history-utils";
 import { playNotificationSound, initializeAudioContext } from "@/utils/notification-sounds";
 import { notifyNative } from "@/utils/native-notify";
+import { usePWAMode } from "@/hooks/usePWAMode";
+import { MobileNav } from "@/components/mobile-nav";
+import { MobileFileUpload } from "@/components/mobile-file-upload";
+import { MobileChat } from "@/components/mobile-chat";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 export default function Home() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -59,6 +64,7 @@ export default function Home() {
   const [receivedFiles, setReceivedFiles] = useState<{data: ArrayBuffer, fileName: string, relativePath: string, fromSocketId: string}[]>([]);
   
   const { t } = useLanguage();
+  const { isMobile, isPWA, isStandalone } = usePWAMode();
 
   // Initialize audio context on first user interaction
   useEffect(() => {
@@ -790,10 +796,223 @@ export default function Home() {
     Array.from(disconnectedPeers.values()).find(dp => dp.peer.socketId === selectedPeer) : null;
   const isSelectedPeerTemporarilyDisconnected = !!selectedPeerDisconnected;
 
+  // Helper functions for mobile file handling
+  const handleMobileFilesSelect = useCallback((files: File[]) => {
+    const { folders, singleFiles } = groupFilesByFolder(files);
+    setSelectedFiles(prev => [...prev, ...singleFiles]);
+    setSelectedFolders(prev => [...prev, ...folders]);
+    
+    const message = folders.length > 0 
+      ? `${folders.length} ${folders.length === 1 ? t("message.folderAdded") : t("message.foldersAdded")} ${t("message.and")} ${singleFiles.length} ${t("message.filesAdded")}`
+      : `${singleFiles.length} ${t("message.filesAdded")}`;
+    
+    toast.success(message);
+  }, [t]);
+
+  const handleMobileFolderSelect = useCallback(() => {
+    if (!selectedPeer) {
+      toast.error(t("toast.selectDeviceFirst"));
+      return;
+    }
+    isSelectingFolderRef.current = true;
+    folderInputRef.current?.click();
+    
+    setTimeout(() => {
+      isSelectingFolderRef.current = false;
+    }, 500);
+  }, [selectedPeer, t]);
+
+  // Mobile/PWA Layout
+  if (isMobile || isPWA) {
+    return (
+      <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        {/* Mobile Navigation */}
+        <MobileNav
+          isConnected={isConnected}
+          deviceInfo={deviceInfo}
+          peers={peers}
+          selectedPeer={selectedPeer}
+          unreadCounts={unreadCounts}
+          onPeerSelect={(peerId) => {
+            setSelectedPeer(peerId);
+            setLastSelectedClientId(peerId ? peers.find(p => p.socketId === peerId)?.clientId || null : null);
+          }}
+          onChatToggle={() => setIsChatOpen(!isChatOpen)}
+          onHistoryToggle={() => setShowHistory(!showHistory)}
+          isChatOpen={isChatOpen}
+          showHistory={showHistory}
+          onEditDeviceName={handleStartEditName}
+        />
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden p-4">
+          <MobileFileUpload
+            selectedFiles={selectedFiles}
+            selectedFolders={selectedFolders}
+            selectedPeer={selectedPeer}
+            peerName={peers.find(p => p.socketId === selectedPeer)?.deviceName}
+            isSending={isSending}
+            transferProgress={transferProgress}
+            onFilesSelect={handleMobileFilesSelect}
+            onFolderSelect={handleMobileFolderSelect}
+            onSend={handleFileSend}
+            onRemoveFile={removeFile}
+            onRemoveFolder={removeFolder}
+            onClearAll={clearAllFiles}
+          />
+        </div>
+
+        {/* Mobile Chat */}
+        <MobileChat
+          isOpen={isChatOpen}
+          onToggle={() => setIsChatOpen(!isChatOpen)}
+          selectedPeer={selectedPeer}
+          peerName={peers.find(p => p.socketId === selectedPeer)?.deviceName}
+          messages={selectedPeer && peers.find(p => p.socketId === selectedPeer) 
+            ? messages.get(peers.find(p => p.socketId === selectedPeer)!.clientId) || []
+            : []}
+          unreadCount={selectedPeer && peers.find(p => p.socketId === selectedPeer)
+            ? unreadCounts.get(peers.find(p => p.socketId === selectedPeer)!.clientId) || 0
+            : 0}
+          inputMessage={inputMessage}
+          onInputChange={setInputMessage}
+          onSendMessage={() => {
+            if (inputMessage.trim() && selectedPeer) {
+              sendMessage(inputMessage, selectedPeer);
+              setInputMessage('');
+            }
+          }}
+          onMarkAsRead={() => selectedPeer && markMessagesAsRead(selectedPeer)}
+          isConnected={isConnected}
+        />
+
+        {/* PWA Install Prompt */}
+        {!isStandalone && <PWAInstallPrompt />}
+
+        {/* Hidden Inputs for Mobile */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onChange={handleFileInputChange}
+          className="hidden"
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          {...({ webkitdirectory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
+          onChange={handleFileInputChange}
+          className="hidden"
+        />
+
+        {/* Dialogs */}
+        {/* Single File Request Dialog */}
+        <AlertDialog open={!!incomingFileRequest}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-3">
+                <Image 
+                  src="/icon.png" 
+                  alt="GavaDrop" 
+                  width={24} 
+                  height={24}
+                  className="w-6 h-6"
+                />
+                {t("dialog.fileRequest")}
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
+                    <FilePreviewMetadata 
+                      fileName={incomingFileRequest?.fileName || ''}
+                      size="medium"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground truncate">
+                        {incomingFileRequest?.fileName}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {incomingFileRequest ? formatFileSize(incomingFileRequest.fileSize) : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} {t("message.thisFile")}. {t("dialog.acceptFile")}
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => incomingFileRequest && rejectFile(incomingFileRequest.socketId)}>
+                {t("dialog.reject")}
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => incomingFileRequest && acceptFile(incomingFileRequest.socketId)}>
+                {t("dialog.accept")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* History Modal for Mobile */}
+        {showHistory && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center animate-in fade-in-0 duration-200">
+            <div className="bg-background rounded-t-2xl w-full h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">{t("history.transferHistory")}</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistory(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <TransferHistory 
+                  isOpen={showHistory} 
+                  onResendFile={async (fileName, fileSize, deviceName, fileData) => {
+                    try {
+                      await resendFile(fileName, fileSize, deviceName, fileData);
+                      toast.success(`${fileName} ${t("toast.resendSuccess")}`);
+                      playNotificationSound('success');
+                      setShowHistory(false);
+                    } catch (error: unknown) {
+                      const errorMessage = (error as Error).message;
+                      if (errorMessage.includes('not currently connected')) {
+                        toast.error(`${t("toast.deviceNotConnected")}: ${deviceName}`);
+                      } else if (errorMessage.includes('No file selected') || errorMessage.includes('cancelled')) {
+                        toast.info(t("toast.selectOriginalFile"));
+                      } else if (errorMessage.includes('File size mismatch') || errorMessage.includes('Please select the original file')) {
+                        toast.error(errorMessage);
+                      } else if (errorMessage.includes('rejected')) {
+                        toast.error(t("toast.fileRejected"));
+                      } else {
+                        toast.error(t("toast.sendError"));
+                        console.error('Resend error:', error);
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Other dialogs... */}
+        {/* Add other mobile-optimized dialogs here */}
+      </div>
+    );
+  }
+
+  // Desktop Layout (original)
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex">
       {/* Left Sidebar - Full Height */}
-      <div className="w-80 bg-background border-r border-border flex flex-col shadow-lg h-full">
+      <div className="hidden md:flex w-80 bg-background border-r border-border flex-col shadow-lg h-full">
         {/* Sidebar Header */}
         <div className="p-6 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3 mb-4">
@@ -1760,6 +1979,9 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PWA Install Prompt for Desktop */}
+      {!isStandalone && <PWAInstallPrompt />}
     </div>
   );
 }

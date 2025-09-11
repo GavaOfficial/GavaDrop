@@ -760,7 +760,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     const timers = disconnectionTimers.current;
     const conns = connections.current;
     
-    const socketInstance = io('http://localhost:3002');
+    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_IO_SERVER_URL || 'http://localhost:3002');
     
     // Get or create persistent client ID
     let clientId = localStorage.getItem('gavadrop-client-id');
