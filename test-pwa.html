@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Test - GavaDrop</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .pending { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>GavaDrop PWA Test</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        const results = [];
+        
+        function addResult(test, status, message) {
+            results.push({ test, status, message });
+            updateDisplay();
+        }
+        
+        function updateDisplay() {
+            const container = document.getElementById('test-results');
+            container.innerHTML = results.map(result => 
+                `<div class="test-result ${result.status}">
+                    <strong>${result.test}:</strong> ${result.message}
+                </div>`
+            ).join('');
+        }
+        
+        // Test 1: Service Worker Support
+        if ('serviceWorker' in navigator) {
+            addResult('Service Worker Support', 'pass', 'Service Worker API is supported');
+            
+            // Test 2: Service Worker Registration
+            navigator.serviceWorker.getRegistration().then(registration => {
+                if (registration) {
+                    addResult('Service Worker Registration', 'pass', 'Service Worker is registered');
+                } else {
+                    addResult('Service Worker Registration', 'fail', 'Service Worker is not registered');
+                }
+            });
+        } else {
+            addResult('Service Worker Support', 'fail', 'Service Worker API is not supported');
+        }
+        
+        // Test 3: Manifest Detection
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+            addResult('Manifest Link', 'pass', 'Manifest link found in document');
+            
+            // Test 4: Fetch Manifest
+            fetch(manifestLink.href)
+                .then(response => response.json())
+                .then(manifest => {
+                    addResult('Manifest File', 'pass', `Manifest loaded: ${manifest.name}`);
+                })
+                .catch(error => {
+                    addResult('Manifest File', 'fail', `Failed to load manifest: ${error.message}`);
+                });
+        } else {
+            addResult('Manifest Link', 'fail', 'No manifest link found');
+        }
+        
+        // Test 5: Installation Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            addResult('Install Prompt', 'pass', 'Install prompt is available');
+        });
+        
+        // Test 6: HTTPS/Localhost
+        if (location.protocol === 'https:' || location.hostname === 'localhost') {
+            addResult('Secure Context', 'pass', 'Running in secure context');
+        } else {
+            addResult('Secure Context', 'fail', 'Not running in secure context');
+        }
+        
+        // Test 7: Cache API
+        if ('caches' in window) {
+            addResult('Cache API', 'pass', 'Cache API is supported');
+        } else {
+            addResult('Cache API', 'fail', 'Cache API is not supported');
+        }
+        
+        // Test 8: Icons Check
+        setTimeout(() => {
+            const icons = ['icon-192x192.png', 'icon-512x512.png', 'apple-touch-icon.png'];
+            let iconTests = 0;
+            
+            icons.forEach(icon => {
+                const img = new Image();
+                img.onload = () => {
+                    iconTests++;
+                    if (iconTests === icons.length) {
+                        addResult('PWA Icons', 'pass', 'All required icons are accessible');
+                    }
+                };
+                img.onerror = () => {
+                    addResult('PWA Icons', 'fail', `Icon ${icon} failed to load`);
+                };
+                img.src = `/${icon}`;
+            });
+        }, 1000);
+        
+        // Initial display
+        addResult('PWA Test Started', 'pending', 'Running PWA compatibility tests...');
+    </script>
+</body>
+</html>
