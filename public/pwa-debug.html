@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Debug - GavaDrop</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GavaDrop Debug">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .debug-info { 
+            background: rgba(255,255,255,0.1); 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            backdrop-filter: blur(10px);
+        }
+        .status { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; }
+        .true { color: #4ade80; }
+        .false { color: #ef4444; }
+        .undefined { color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <h1>🔧 GavaDrop PWA Debug</h1>
+    
+    <div class="debug-info">
+        <div class="status" id="standalone-status"></div>
+        <div id="debug-details"></div>
+    </div>
+
+    <div class="debug-info">
+        <h3>Come testare su iOS:</h3>
+        <ol>
+            <li>Apri questa pagina in Safari</li>
+            <li>Tocca il pulsante "Condividi" (freccia verso l'alto)</li>
+            <li>Scorri e trova "Aggiungi alla schermata Home"</li>
+            <li>Conferma l'aggiunta</li>
+            <li>Torna alla home screen e tocca l'icona GavaDrop</li>
+            <li>Se funziona, dovresti vedere "STANDALONE: TRUE" qui sopra</li>
+        </ol>
+    </div>
+
+    <script>
+        function updateStatus() {
+            const isStandalone = window.navigator.standalone;
+            const statusEl = document.getElementById('standalone-status');
+            const detailsEl = document.getElementById('debug-details');
+            
+            let statusText = '';
+            let statusClass = '';
+            
+            if (isStandalone === true) {
+                statusText = '✅ STANDALONE: TRUE - PWA funziona correttamente!';
+                statusClass = 'true';
+            } else if (isStandalone === false) {
+                statusText = '❌ STANDALONE: FALSE - L\'app si apre in Safari';
+                statusClass = 'false';
+            } else {
+                statusText = '⚠️ STANDALONE: UNDEFINED - Probabilmente non su iOS';
+                statusClass = 'undefined';
+            }
+            
+            statusEl.textContent = statusText;
+            statusEl.className = `status ${statusClass}`;
+            
+            // Debug details
+            const details = [
+                `User Agent: ${navigator.userAgent}`,
+                `Platform: ${navigator.platform}`,
+                `Standalone: ${isStandalone}`,
+                `Display Mode: ${window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser'}`,
+                `Service Worker: ${'serviceWorker' in navigator ? 'Supported' : 'Not supported'}`,
+                `Current URL: ${window.location.href}`,
+                `Referrer: ${document.referrer || 'None'}`,
+                `Screen: ${screen.width}x${screen.height}`,
+                `Viewport: ${window.innerWidth}x${window.innerHeight}`
+            ];
+            
+            detailsEl.innerHTML = details.map(detail => `<div>• ${detail}</div>`).join('');
+        }
+        
+        // Update immediately and on page show (for back/forward navigation)
+        updateStatus();
+        window.addEventListener('pageshow', updateStatus);
+        
+        // Also log to console
+        console.log('PWA Debug Info:', {
+            standalone: window.navigator.standalone,
+            userAgent: navigator.userAgent,
+            displayMode: window.matchMedia('(display-mode: standalone)').matches,
+            serviceWorker: 'serviceWorker' in navigator
+        });
+    </script>
+</body>
+</html>
