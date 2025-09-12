@@ -32,6 +32,7 @@ interface ModernMobileDevicesProps {
   peers: Peer[];
   disconnectedPeers: Map<string, { peer: Peer; disconnectedAt: number }>;
   selectedPeer: string | null;
+  lastSelectedClientId: string | null;
   deviceInfo: { deviceName: string; deviceId: string } | null;
   isConnected: boolean;
   unreadCounts: Map<string, number>;
@@ -49,6 +50,7 @@ export const ModernMobileDevices = ({
   peers,
   disconnectedPeers,
   selectedPeer,
+  lastSelectedClientId,
   deviceInfo,
   isConnected,
   unreadCounts,

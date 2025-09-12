@@ -832,6 +832,8 @@ export default function Home() {
           selectedPeer={selectedPeer}
           lastSelectedClientId={lastSelectedClientId}
           inputMessage={inputMessage}
+          isEncryptionEnabled={isEncryptionEnabled}
+          encryptionPassword={encryptionPassword}
           isEditingName={isEditingName}
           newDeviceName={newDeviceName}
           showDecryptDialog={showDecryptDialog}
@@ -878,6 +880,9 @@ export default function Home() {
           setDecryptAttempts={setDecryptAttempts}
           setPendingEncryptedFile={setPendingEncryptedFile}
           setNewDeviceName={setNewDeviceName}
+          setLastSelectedClientId={setLastSelectedClientId}
+          setIsEncryptionEnabled={setIsEncryptionEnabled}
+          setEncryptionPassword={setEncryptionPassword}
         />
 
         {/* PWA Install Prompt */}

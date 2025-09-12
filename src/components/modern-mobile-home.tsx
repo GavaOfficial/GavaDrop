@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { 
   Upload, 
   FileImage, 
@@ -18,7 +19,9 @@ import {
   WifiOff,
   Plus,
   ChevronRight,
-  Zap
+  Zap,
+  Lock,
+  Unlock
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { FilePreview } from "@/components/file-preview";
@@ -45,6 +48,10 @@ interface ModernMobileHomeProps {
   onRemoveFile: (index: number) => void;
   onRemoveFolder: (index: number) => void;
   onClearAll: () => void;
+  isEncryptionEnabled: boolean;
+  encryptionPassword: string;
+  onToggleEncryption: (enabled: boolean) => void;
+  onPasswordChange: (password: string) => void;
 }
 
 export const ModernMobileHome = ({
@@ -60,7 +67,11 @@ export const ModernMobileHome = ({
   onSend,
   onRemoveFile,
   onRemoveFolder,
-  onClearAll
+  onClearAll,
+  isEncryptionEnabled,
+  encryptionPassword,
+  onToggleEncryption,
+  onPasswordChange
 }: ModernMobileHomeProps) => {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -259,6 +270,49 @@ export const ModernMobileHome = ({
                     </Card>
                   );
                 })}
+              </div>
+
+              {/* Encryption Section */}
+              <div className="mt-4">
+                <Card className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-xl">
+                      {isEncryptionEnabled ? (
+                        <Lock className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Unlock className="h-5 w-5 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium text-green-900 dark:text-green-100">
+                          {t("file.encryption")}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant={isEncryptionEnabled ? "default" : "outline"}
+                          onClick={() => onToggleEncryption(!isEncryptionEnabled)}
+                          className={`h-8 px-3 ${
+                            isEncryptionEnabled 
+                              ? 'bg-green-600 hover:bg-green-700 text-white' 
+                              : 'border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/30'
+                          }`}
+                        >
+                          {isEncryptionEnabled ? t("file.enabled") : t("file.disabled")}
+                        </Button>
+                      </div>
+                      {isEncryptionEnabled && (
+                        <Input
+                          type="password"
+                          placeholder={t("file.encryptionPassword")}
+                          value={encryptionPassword}
+                          onChange={(e) => onPasswordChange(e.target.value)}
+                          className="mt-3 bg-white dark:bg-gray-800 border-green-200 dark:border-green-700 focus:border-green-400 dark:focus:border-green-500"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </Card>
               </div>
 
               {/* Send Button */}

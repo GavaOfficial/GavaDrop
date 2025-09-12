@@ -30,6 +30,8 @@ interface ModernMobileAppProps {
   selectedPeer: string | null;
   lastSelectedClientId: string | null;
   inputMessage: string;
+  isEncryptionEnabled: boolean;
+  encryptionPassword: string;
   isEditingName: boolean;
   newDeviceName: string;
   showDecryptDialog: boolean;
@@ -76,6 +78,9 @@ interface ModernMobileAppProps {
   setDecryptAttempts: (attempts: number) => void;
   setPendingEncryptedFile: (file: {data: ArrayBuffer, fileName: string, fromSocketId: string, originalFileName: string} | null) => void;
   setNewDeviceName: (name: string) => void;
+  setLastSelectedClientId: (clientId: string | null) => void;
+  setIsEncryptionEnabled: (enabled: boolean) => void;
+  setEncryptionPassword: (password: string) => void;
 }
 
 export default function ModernMobileApp(props: ModernMobileAppProps) {
@@ -88,7 +93,10 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     selectedFolders,
     isSending,
     selectedPeer,
+    lastSelectedClientId,
     inputMessage,
+    isEncryptionEnabled,
+    encryptionPassword,
     peers,
     deviceInfo,
     isConnected,
@@ -127,7 +135,10 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     handleStartEditName,
     handleSaveDeviceName,
     handleCancelEditName,
-    setNewDeviceName
+    setNewDeviceName,
+    setLastSelectedClientId,
+    setIsEncryptionEnabled,
+    setEncryptionPassword
   } = props;
 
   // Helper functions that should come from desktop
@@ -150,6 +161,16 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
   const handlePeerSelect = useCallback((peerId: string | null) => {
     setSelectedPeer(peerId);
     
+    // Save lastSelectedClientId for auto-reconnection (same logic as desktop)
+    if (peerId && peers) {
+      const selectedPeerData = peers.find(p => p.socketId === peerId);
+      if (selectedPeerData) {
+        setLastSelectedClientId(selectedPeerData.clientId);
+      }
+    } else {
+      setLastSelectedClientId(null);
+    }
+    
     // Auto-switch to chat if device has unread messages
     if (peerId && peers && unreadCounts) {
       const peer = peers.find(p => p.socketId === peerId);
@@ -158,7 +179,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
         markMessagesAsRead(peerId);
       }
     }
-  }, [peers, unreadCounts, markMessagesAsRead, setSelectedPeer]);
+  }, [peers, unreadCounts, markMessagesAsRead, setSelectedPeer, setLastSelectedClientId]);
 
   // Render active tab content
   const renderActiveTab = () => {
@@ -179,6 +200,10 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
             onRemoveFile={removeFile}
             onRemoveFolder={removeFolder}
             onClearAll={clearAllFiles}
+            isEncryptionEnabled={isEncryptionEnabled}
+            encryptionPassword={encryptionPassword}
+            onToggleEncryption={setIsEncryptionEnabled}
+            onPasswordChange={setEncryptionPassword}
           />
         );
       
@@ -188,6 +213,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
             peers={peers || []}
             disconnectedPeers={disconnectedPeers || new Map()}
             selectedPeer={selectedPeer}
+            lastSelectedClientId={lastSelectedClientId}
             deviceInfo={deviceInfo}
             isConnected={isConnected}
             unreadCounts={unreadCounts || new Map()}
