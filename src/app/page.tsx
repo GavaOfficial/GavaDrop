@@ -32,9 +32,7 @@ import { saveToHistory, saveFileToHistory } from "@/utils/history-utils";
 import { playNotificationSound, initializeAudioContext } from "@/utils/notification-sounds";
 import { notifyNative } from "@/utils/native-notify";
 import { usePWAMode } from "@/hooks/usePWAMode";
-import { MobileNav } from "@/components/mobile-nav";
-import { MobileFileUpload } from "@/components/mobile-file-upload";
-import { MobileChat } from "@/components/mobile-chat";
+import ModernMobileApp from "@/components/modern-mobile-app";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 export default function Home() {
@@ -825,65 +823,61 @@ export default function Home() {
   // Mobile/PWA Layout
   if (isMobile || isPWA) {
     return (
-      <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        {/* Mobile Navigation */}
-        <MobileNav
-          isConnected={isConnected}
-          deviceInfo={deviceInfo}
-          peers={peers}
+      <div className="h-screen flex flex-col ios-app-container bg-background">
+        {/* Modern Mobile App usando le funzioni desktop esatte */}
+        <ModernMobileApp
+          selectedFiles={selectedFiles}
+          selectedFolders={selectedFolders}
+          isSending={isSending}
           selectedPeer={selectedPeer}
-          unreadCounts={unreadCounts}
-          onPeerSelect={(peerId) => {
-            setSelectedPeer(peerId);
-            setLastSelectedClientId(peerId ? peers.find(p => p.socketId === peerId)?.clientId || null : null);
-          }}
-          onChatToggle={() => setIsChatOpen(!isChatOpen)}
-          onHistoryToggle={() => setShowHistory(!showHistory)}
-          isChatOpen={isChatOpen}
-          showHistory={showHistory}
-          onEditDeviceName={handleStartEditName}
-        />
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-hidden p-4">
-          <MobileFileUpload
-            selectedFiles={selectedFiles}
-            selectedFolders={selectedFolders}
-            selectedPeer={selectedPeer}
-            peerName={peers.find(p => p.socketId === selectedPeer)?.deviceName}
-            isSending={isSending}
-            transferProgress={transferProgress}
-            onFilesSelect={handleMobileFilesSelect}
-            onFolderSelect={handleMobileFolderSelect}
-            onSend={handleFileSend}
-            onRemoveFile={removeFile}
-            onRemoveFolder={removeFolder}
-            onClearAll={clearAllFiles}
-          />
-        </div>
-
-        {/* Mobile Chat */}
-        <MobileChat
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
-          selectedPeer={selectedPeer}
-          peerName={peers.find(p => p.socketId === selectedPeer)?.deviceName}
-          messages={selectedPeer && peers.find(p => p.socketId === selectedPeer) 
-            ? messages.get(peers.find(p => p.socketId === selectedPeer)!.clientId) || []
-            : []}
-          unreadCount={selectedPeer && peers.find(p => p.socketId === selectedPeer)
-            ? unreadCounts.get(peers.find(p => p.socketId === selectedPeer)!.clientId) || 0
-            : 0}
+          lastSelectedClientId={lastSelectedClientId}
           inputMessage={inputMessage}
-          onInputChange={setInputMessage}
-          onSendMessage={() => {
-            if (inputMessage.trim() && selectedPeer) {
-              sendMessage(inputMessage, selectedPeer);
-              setInputMessage('');
-            }
-          }}
-          onMarkAsRead={() => selectedPeer && markMessagesAsRead(selectedPeer)}
+          isEditingName={isEditingName}
+          newDeviceName={newDeviceName}
+          showDecryptDialog={showDecryptDialog}
+          decryptPassword={decryptPassword}
+          decryptAttempts={decryptAttempts}
+          pendingEncryptedFile={pendingEncryptedFile}
+          receivedFiles={receivedFiles}
+          fileInputRef={fileInputRef}
+          folderInputRef={folderInputRef}
+          isSelectingFolderRef={isSelectingFolderRef}
+          peers={peers}
+          deviceInfo={deviceInfo}
           isConnected={isConnected}
+          sendFile={sendFile}
+          sendBatchFiles={sendBatchFiles}
+          sendMessage={sendMessage}
+          messages={messages}
+          unreadCounts={unreadCounts}
+          markMessagesAsRead={markMessagesAsRead}
+          disconnectedPeers={disconnectedPeers}
+          incomingFileRequest={incomingFileRequest}
+          incomingBatchRequest={incomingBatchRequest}
+          transferProgress={transferProgress}
+          acceptFile={acceptFile}
+          rejectFile={rejectFile}
+          acceptBatchFiles={acceptBatchFiles}
+          rejectBatchFiles={rejectBatchFiles}
+          changeDeviceName={changeDeviceName}
+          resendFile={resendFile}
+          handleFilesSelect={handleMobileFilesSelect}
+          handleFolderSelect={handleMobileFolderSelect}
+          handleFileSend={handleFileSend}
+          removeFile={removeFile}
+          removeFolder={removeFolder}
+          clearAllFiles={clearAllFiles}
+          handleStartEditName={handleStartEditName}
+          handleSaveDeviceName={handleSaveDeviceName}
+          handleCancelEditName={handleCancelEditName}
+          handleDecryptFile={handleDecryptFile}
+          setSelectedPeer={setSelectedPeer}
+          setInputMessage={setInputMessage}
+          setDecryptPassword={setDecryptPassword}
+          setShowDecryptDialog={setShowDecryptDialog}
+          setDecryptAttempts={setDecryptAttempts}
+          setPendingEncryptedFile={setPendingEncryptedFile}
+          setNewDeviceName={setNewDeviceName}
         />
 
         {/* PWA Install Prompt */}
@@ -904,106 +898,6 @@ export default function Home() {
           onChange={handleFileInputChange}
           className="hidden"
         />
-
-        {/* Dialogs */}
-        {/* Single File Request Dialog */}
-        <AlertDialog open={!!incomingFileRequest}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-3">
-                <Image 
-                  src="/icon.png" 
-                  alt="GavaDrop" 
-                  width={24} 
-                  height={24}
-                  className="w-6 h-6"
-                />
-                {t("dialog.fileRequest")}
-              </AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
-                    <FilePreviewMetadata 
-                      fileName={incomingFileRequest?.fileName || ''}
-                      size="medium"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground truncate">
-                        {incomingFileRequest?.fileName}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {incomingFileRequest ? formatFileSize(incomingFileRequest.fileSize) : ''}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {incomingFileRequest?.fromName} {t("dialog.wantsToSend")} {t("message.thisFile")}. {t("dialog.acceptFile")}
-                  </div>
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => incomingFileRequest && rejectFile(incomingFileRequest.socketId)}>
-                {t("dialog.reject")}
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={() => incomingFileRequest && acceptFile(incomingFileRequest.socketId)}>
-                {t("dialog.accept")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* History Modal for Mobile */}
-        {showHistory && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center animate-in fade-in-0 duration-200">
-            <div className="bg-background rounded-t-2xl w-full h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200">
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <History className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">{t("history.transferHistory")}</h2>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowHistory(false)}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <TransferHistory 
-                  isOpen={showHistory} 
-                  onResendFile={async (fileName, fileSize, deviceName, fileData) => {
-                    try {
-                      await resendFile(fileName, fileSize, deviceName, fileData);
-                      toast.success(`${fileName} ${t("toast.resendSuccess")}`);
-                      playNotificationSound('success');
-                      setShowHistory(false);
-                    } catch (error: unknown) {
-                      const errorMessage = (error as Error).message;
-                      if (errorMessage.includes('not currently connected')) {
-                        toast.error(`${t("toast.deviceNotConnected")}: ${deviceName}`);
-                      } else if (errorMessage.includes('No file selected') || errorMessage.includes('cancelled')) {
-                        toast.info(t("toast.selectOriginalFile"));
-                      } else if (errorMessage.includes('File size mismatch') || errorMessage.includes('Please select the original file')) {
-                        toast.error(errorMessage);
-                      } else if (errorMessage.includes('rejected')) {
-                        toast.error(t("toast.fileRejected"));
-                      } else {
-                        toast.error(t("toast.sendError"));
-                        console.error('Resend error:', error);
-                      }
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Other dialogs... */}
-        {/* Add other mobile-optimized dialogs here */}
       </div>
     );
   }

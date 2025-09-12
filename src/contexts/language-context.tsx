@@ -28,6 +28,15 @@ const translations = {
     "device.noDevicesFound": "Nessun dispositivo trovato",
     "device.openGavaDrop": "Altri dispositivi devono aprire GavaDrop",
     "device.selected": "Selezionato",
+    "device.youLabel": "Tu",
+    "device.deviceSelected": "Dispositivo selezionato",
+    "device.reconnecting": "Riconnessione...",
+    "device.reconnectionInProgress": "Tentativo di riconnessione in corso",
+    "device.devicesFound": "dispositivo trovato",
+    "device.devicesFoundPlural": "dispositivi trovati",
+    "device.connectionNotAvailable": "Connessione non disponibile",
+    "device.openOnOtherDevices": "Apri GavaDrop su altri dispositivi della stessa rete per iniziare a condividere file",
+    "device.search": "Cerca dispositivi...",
     
     // File Transfer
     "transfer.title": "Trasferimento File",
@@ -51,6 +60,15 @@ const translations = {
     "transfer.sending": "Inviando...",
     "transfer.resendAuto": "Re-invio automatico",
     "transfer.resendManual": "Re-invio (seleziona file)",
+    "transfer.dragFilesHere": "Trascina i file qui",
+    "transfer.selectDeviceToStart": "Seleziona un dispositivo",
+    "transfer.chooseFromDevicesTab": "Scegli un dispositivo dalla scheda Dispositivi per iniziare il trasferimento",
+    "transfer.orUseButtons": "Oppure usa i pulsanti qui sotto per selezionare file o cartelle",
+    "transfer.readyForSending": "Pronto per l'invio",
+    "transfer.add": "Aggiungi",
+    "transfer.element": "elemento",
+    "transfer.elements": "elementi",
+    "transfer.completed": "completato",
     
     // Progress
     "progress.sending": "Inviando",
@@ -102,6 +120,14 @@ const translations = {
     "chat.startConversation": "Inizia una conversazione",
     "chat.typeMessage": "Scrivi un messaggio...",
     "chat.title": "Chat",
+    "chat.unknownDevice": "Dispositivo Sconosciuto",
+    "chat.online": "Online",
+    "chat.offline": "Offline",
+    "chat.sendFirstMessage": "Invia il primo messaggio a",
+    "chat.startConversationWith": "per iniziare la conversazione",
+    "chat.selectDevice": "Seleziona un dispositivo",
+    "chat.chooseFromDevices": "Scegli un dispositivo dalla scheda Dispositivi per iniziare una conversazione",
+    "chat.noMessagesYet": "Nessun messaggio ancora",
     
     // History
     "history.title": "Cronologia",
@@ -165,6 +191,12 @@ const translations = {
     "message.and": "e",
     "message.thisFile": "questo file",
     
+    // Navigation
+    "nav.home": "Home",
+    "nav.devices": "Dispositivi",
+    "nav.chat": "Chat",
+    "nav.history": "Cronologia",
+    
     // Misc
     "misc.devices": "Dispositivi",
     "misc.reconnecting": "Reconnecting...",
@@ -187,6 +219,15 @@ const translations = {
     "device.noDevicesFound": "No devices found",
     "device.openGavaDrop": "Other devices need to open GavaDrop",
     "device.selected": "Selected",
+    "device.youLabel": "You",
+    "device.deviceSelected": "Device selected",
+    "device.reconnecting": "Reconnecting...",
+    "device.reconnectionInProgress": "Reconnection attempt in progress",
+    "device.devicesFound": "device found",
+    "device.devicesFoundPlural": "devices found",
+    "device.connectionNotAvailable": "Connection not available",
+    "device.openOnOtherDevices": "Open GavaDrop on other devices on the same network to start sharing files",
+    "device.search": "Search devices...",
     
     // File Transfer
     "transfer.title": "File Transfer",
@@ -210,6 +251,15 @@ const translations = {
     "transfer.sending": "Sending...",
     "transfer.resendAuto": "Automatic resend",
     "transfer.resendManual": "Resend (select file)",
+    "transfer.dragFilesHere": "Drag files here",
+    "transfer.selectDeviceToStart": "Select a device",
+    "transfer.chooseFromDevicesTab": "Choose a device from the Devices tab to start transferring",
+    "transfer.orUseButtons": "Or use the buttons below to select files or folders",
+    "transfer.readyForSending": "Ready for sending",
+    "transfer.add": "Add",
+    "transfer.element": "item",
+    "transfer.elements": "items",
+    "transfer.completed": "completed",
     
     // Progress
     "progress.sending": "Sending",
@@ -261,6 +311,14 @@ const translations = {
     "chat.startConversation": "Start a conversation",
     "chat.typeMessage": "Type a message...",
     "chat.title": "Chat",
+    "chat.unknownDevice": "Unknown Device",
+    "chat.online": "Online",
+    "chat.offline": "Offline",
+    "chat.sendFirstMessage": "Send the first message to",
+    "chat.startConversationWith": "to start the conversation",
+    "chat.selectDevice": "Select a device",
+    "chat.chooseFromDevices": "Choose a device from the Devices tab to start a conversation",
+    "chat.noMessagesYet": "No messages yet",
     
     // History
     "history.title": "History",
@@ -323,6 +381,12 @@ const translations = {
     "message.filesAdded": "files added",
     "message.and": "and",
     "message.thisFile": "this file",
+    
+    // Navigation
+    "nav.home": "Home",
+    "nav.devices": "Devices",
+    "nav.chat": "Chat",
+    "nav.history": "History",
     
     // Misc
     "misc.devices": "Devices",
