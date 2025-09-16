@@ -1,6 +1,73 @@
 # GavaDrop - Update History
 
-## Version 0.9.5 (Current)
+## Version 0.9.6 (Current)
+
+### Progressive Web App (PWA) Implementation
+- **Complete PWA functionality** with offline capabilities and app installation
+  - Full web app manifest with Italian localization and proper metadata
+  - Service worker implementation for offline caching and background sync
+  - App installation support for mobile and desktop browsers
+  - Offline functionality with cached resources and background sync
+  - PWA validation and testing infrastructure with dedicated test pages
+
+### iOS and Mobile PWA Optimization
+- **Advanced iOS standalone mode** with proper Apple-specific configuration
+  - Complete Apple meta tags implementation for standalone PWA behavior
+  - iOS-specific JavaScript checks for forcing standalone mode operation
+  - Proper status bar styling with black-translucent configuration
+  - Format detection and mobile-optimized meta tag configuration
+  - Enhanced iOS compatibility with separate icon purposes (any/maskable)
+  - Eliminates Safari browser interface when launched from home screen
+
+### Professional PWA Branding System
+- **Comprehensive icon system** with consistent GavaDrop package design
+  - Official GavaDrop package icons across all PWA sizes (192x192, 512x512)
+  - Apple touch icon with proper iOS home screen integration
+  - Consistent branding representing file sharing concept with package design
+  - Professional favicon integration throughout the application
+  - Complete visual identity system for PWA installations
+
+### Environment Configuration Management
+- **Flexible deployment configuration** with environment variable support
+  - NEXT_PUBLIC_SOCKET_IO_SERVER_URL environment configuration
+  - .env.example template for easy setup and deployment guidance
+  - Dynamic server URL configuration for different environments
+  - Enhanced development and production deployment flexibility
+  - Simplified server configuration for various hosting scenarios
+
+### Modern Mobile Component Architecture
+- **Complete mobile UI refactor** with unified component system
+  - Modern ModernMobileApp component replacing legacy mobile interfaces
+  - Comprehensive mobile component suite: bottom nav, chat, devices, home views
+  - Mobile-specific CSS styling with dedicated mobile.css integration
+  - Consolidated mobile layout logic with improved component organization
+  - Enhanced mobile user experience while maintaining desktop feature parity
+
+### Advanced Mobile State Management
+- **Seamless mobile-desktop feature integration**
+  - Complete encryption state management for mobile components
+  - Mobile component prop passing for isEncryptionEnabled and encryptionPassword
+  - lastSelectedClientId auto-reconnection logic for mobile devices
+  - Feature parity between mobile and desktop versions
+  - Enhanced mobile workflow with full encryption and reconnection support
+
+### Enhanced Accessibility and UX
+- **Improved accessibility compliance** across mobile and PWA interfaces
+  - Hidden SheetTitle elements for screen reader compatibility
+  - Enhanced mobile chat accessibility with proper ARIA labels
+  - Professional PWA installation prompts and user guidance
+  - Improved mobile navigation with bottom navigation component
+  - Cross-platform accessibility standards implementation
+
+### Technical Architecture Improvements
+- **Advanced PWA and mobile optimization**
+  - Next.js 15 metadata optimization with separate viewport exports
+  - Service worker registration with proper lifecycle management
+  - PWA screenshot integration for enhanced app store presentation
+  - Mobile viewport configuration with format detection
+  - Enhanced component organization with modern React patterns
+
+## Version 0.9.5
 
 ### Advanced Native Desktop Notifications System
 - **Electron notification integration** with native system notifications

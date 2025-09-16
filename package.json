@@ -1,6 +1,6 @@
 {
   "name": "gavadrop",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "Modern peer-to-peer file sharing application with WebRTC, real-time chat, and end-to-end encryption for local networks",
   "author": {
     "name": "GAVA",
