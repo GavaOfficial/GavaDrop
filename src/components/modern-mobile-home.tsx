@@ -137,21 +137,24 @@ export const ModernMobileHome = ({
       {/* Transfer Progress */}
       {transferProgress && (
         <div className="mx-6 mb-4">
-          <Card className="ios-card p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+          <Card className="glass-card p-4 animate-fade-in-up">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-2xl">
-                <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2.5 gradient-primary rounded-2xl glow-sm">
+                <Zap className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-blue-900 dark:text-blue-100 truncate">
+                <p className="font-semibold text-foreground truncate">
                   {transferProgress.fileName}
                 </p>
-                <p className="text-sm text-blue-600 dark:text-blue-300">
+                <p className="text-sm text-muted-foreground">
                   {Math.round(transferProgress.progress)}% completato
                 </p>
               </div>
+              <div className="text-2xl font-bold gradient-text">
+                {Math.round(transferProgress.progress)}%
+              </div>
             </div>
-            <Progress value={transferProgress.progress} className="h-3 ios-progress" />
+            <Progress value={transferProgress.progress} variant="glow" />
           </Card>
         </div>
       )}
@@ -159,11 +162,11 @@ export const ModernMobileHome = ({
       {/* File Drop Zone */}
       <div className="flex-1 px-6 overflow-hidden">
         <div
-          className={`h-full border-2 border-dashed rounded-3xl transition-all duration-300 ${
+          className={`h-full border-2 border-dashed rounded-3xl transition-smooth ${
             isDragOver && selectedPeer
-              ? "border-primary bg-primary/5 scale-[1.02]"
+              ? "border-primary glow scale-[1.02] glass-card"
               : selectedPeer
-              ? "border-border hover:border-primary/50 hover:bg-muted/30"
+              ? "border-primary/30 hover:border-primary/60 glass-subtle hover-lift"
               : "border-muted bg-muted/20"
           }`}
           onDragOver={(e) => {
@@ -214,10 +217,10 @@ export const ModernMobileHome = ({
               <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar">
                 {/* Folders */}
                 {selectedFolders.map((folder, index) => (
-                  <Card key={`folder-${index}`} className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/30">
+                  <Card key={`folder-${index}`} className="file-card-modern animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-xl">
-                        <Folder className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <div className="p-2.5 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-xl">
+                        <Folder className="h-5 w-5 text-amber-500" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">
@@ -232,7 +235,7 @@ export const ModernMobileHome = ({
                         size="sm"
                         onClick={() => onRemoveFolder(index)}
                         disabled={isSending}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 transition-smooth"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -244,7 +247,7 @@ export const ModernMobileHome = ({
                 {selectedFiles.map((file, index) => {
                   const FileIcon = getFileIcon(file);
                   return (
-                    <Card key={`file-${index}`} className="p-4 hover:bg-muted/30 transition-colors">
+                    <Card key={`file-${index}`} className="file-card-modern animate-fade-in-up" style={{ animationDelay: `${(selectedFolders.length + index) * 50}ms` }}>
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <FilePreview file={file} size="small" className="rounded-xl" />
@@ -262,7 +265,7 @@ export const ModernMobileHome = ({
                           size="sm"
                           onClick={() => onRemoveFile(index)}
                           disabled={isSending}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 transition-smooth"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -321,40 +324,38 @@ export const ModernMobileHome = ({
                   onClick={onSend}
                   disabled={!selectedPeer || isSending}
                   size="lg"
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                  className="w-full h-14 text-lg font-semibold gradient-primary hover:opacity-90 transition-smooth btn-modern glow"
                 >
                   {isSending ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-{t("transfer.sending")}
+                      {t("transfer.sending")}
                     </>
                   ) : (
                     <>
                       <Send className="h-5 w-5 mr-3" />
-{t("transfer.send")} {totalItems} {totalItems === 1 ? t("transfer.element") : t("transfer.elements")}
+                      {t("transfer.send")} {totalItems} {totalItems === 1 ? t("transfer.element") : t("transfer.elements")}
                     </>
                   )}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-              <div className={`p-6 rounded-full mb-6 ${
-                selectedPeer ? 'bg-primary/10' : 'bg-muted'
-              }`}>
-                <Upload className={`h-12 w-12 ${
+            <div className="empty-state-modern animate-fade-in-up h-full">
+              <div className={`empty-state-icon ${selectedPeer ? '' : 'opacity-50'}`}>
+                <Upload className={`h-10 w-10 ${
                   selectedPeer ? 'text-primary' : 'text-muted-foreground'
                 }`} />
               </div>
-              
+
               <h3 className={`text-xl font-bold mb-2 ${
-                selectedPeer ? 'text-foreground' : 'text-muted-foreground'
+                selectedPeer ? 'gradient-text' : 'text-muted-foreground'
               }`}>
-{selectedPeer ? t("transfer.dragFilesHere") : t("transfer.selectDeviceToStart")}
+                {selectedPeer ? t("transfer.dragFilesHere") : t("transfer.selectDeviceToStart")}
               </h3>
-              
-              <p className="text-muted-foreground mb-8 leading-relaxed">
-{selectedPeer 
+
+              <p className="text-muted-foreground mb-8 leading-relaxed max-w-xs">
+                {selectedPeer
                   ? t("transfer.orUseButtons")
                   : t("transfer.chooseFromDevicesTab")
                 }
@@ -365,20 +366,19 @@ export const ModernMobileHome = ({
                   <Button
                     onClick={handleFileSelect}
                     size="lg"
-                    variant="default"
-                    className="w-full gap-3 h-12"
+                    className="w-full gap-3 h-12 gradient-primary btn-modern hover:opacity-90 transition-smooth"
                   >
                     <Upload className="h-5 w-5" />
-{t("transfer.selectFiles")}
+                    {t("transfer.selectFiles")}
                   </Button>
                   <Button
                     onClick={onFolderSelect}
                     size="lg"
                     variant="outline"
-                    className="w-full gap-3 h-12"
+                    className="w-full gap-3 h-12 glass hover:bg-primary/10 hover:border-primary/50 transition-smooth"
                   >
                     <Folder className="h-5 w-5" />
-{t("transfer.selectFolder")}
+                    {t("transfer.selectFolder")}
                   </Button>
                 </div>
               )}

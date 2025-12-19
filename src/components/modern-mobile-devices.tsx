@@ -104,10 +104,10 @@ export const ModernMobileDevices = ({
 
         {/* My Device Card */}
         {deviceInfo && (
-          <Card className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 mb-4">
+          <Card className="p-4 glass-card border-primary/20 mb-4 animate-fade-in-up">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/20 rounded-xl">
-                <Monitor className="h-5 w-5 text-primary" />
+              <div className="p-2.5 gradient-primary rounded-xl glow-sm">
+                <Monitor className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1">
                 {isEditingName ? (
@@ -166,44 +166,43 @@ placeholder={t("device.yourDevice")}
       {/* Devices List */}
       <div className="flex-1 px-6 pb-4 overflow-y-auto custom-scrollbar">
         {peers.length === 0 && disconnectedPeersList.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="p-6 bg-muted/30 rounded-full mx-auto w-fit mb-4">
-              <Users className="h-12 w-12 text-muted-foreground/50" />
+          <div className="empty-state-modern animate-fade-in-up py-16">
+            <div className="empty-state-icon">
+              <Users className="h-10 w-10 text-primary" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">
-{t("device.noDevicesFound")}
+              {t("device.noDevicesFound")}
             </h3>
-            <p className="text-muted-foreground text-sm leading-relaxed max-w-sm mx-auto">
-{t("device.openOnOtherDevices")}
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
+              {t("device.openOnOtherDevices")}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {/* Connected Devices */}
-            {filteredPeers.map((peer) => {
+            {filteredPeers.map((peer, index) => {
               const DeviceIcon = getDeviceIcon(peer.deviceName);
               const isSelected = selectedPeer === peer.socketId;
               const unreadCount = unreadCounts.get(peer.clientId) || 0;
-              
+
               return (
-                <Card 
-                  key={peer.socketId} 
-                  className={`p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    isSelected 
-                      ? 'bg-primary/10 border-primary/30 shadow-lg' 
-                      : 'hover:bg-muted/30 border-border'
+                <Card
+                  key={peer.socketId}
+                  className={`peer-card animate-fade-in-up ${
+                    isSelected ? 'selected' : ''
                   }`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                   onClick={() => {
                     const newSelection = isSelected ? null : peer.socketId;
                     onPeerSelect(newSelection);
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-2xl ${
-                      isSelected ? 'bg-primary/20' : 'bg-muted'
+                    <div className={`p-3 rounded-2xl transition-smooth ${
+                      isSelected ? 'gradient-primary glow-sm' : 'bg-muted'
                     }`}>
                       <DeviceIcon className={`h-6 w-6 ${
-                        isSelected ? 'text-primary' : 'text-muted-foreground'
+                        isSelected ? 'text-white' : 'text-muted-foreground'
                       }`} />
                     </div>
                     
@@ -248,7 +247,7 @@ placeholder={t("device.yourDevice")}
                       )}
                       
                       {isSelected && (
-                        <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
+                        <div className="status-online"></div>
                       )}
                     </div>
                   </div>
