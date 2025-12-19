@@ -1,6 +1,81 @@
 # GavaDrop - Update History
 
-## Version 0.9.6 (Current)
+## Version 1.0.0 (Current)
+
+### Modern UI Redesign
+- **Complete visual overhaul** with modern design system
+  - New color palette using oklch color space for consistency
+  - Glassmorphism effects with backdrop blur throughout the UI
+  - Gradient primary buttons with glow effects
+  - Smooth animations and transitions on all interactive elements
+  - Modern progress bar with gradient, glow, and shimmer effects
+
+### Advanced Animation System
+- **Comprehensive animation library** in globals.css
+  - fade-in, fade-in-up, fade-in-down animations for element entry
+  - scale-in and slide-in animations for dynamic content
+  - bounce-subtle animation for empty states and icons
+  - shimmer effect for loading states and progress bars
+  - glow-pulse animation for status indicators
+
+### Glassmorphism Components
+- **New utility classes** for modern glass effects
+  - .glass, .glass-subtle, .glass-card classes
+  - .gradient-primary, .gradient-text for gradient styling
+  - .glow, .glow-sm, .glow-lg, .glow-pulse for luminous effects
+  - .hover-lift, .hover-glow for interactive feedback
+  - .btn-modern with shimmer hover effect
+
+### Enhanced Progress Bar Component
+- **Three progress bar variants** with new styling
+  - default: Classic solid color progress
+  - modern: Gradient fill with subtle glow
+  - glow: Full gradient with prominent glow and reflection effect
+  - Smooth transitions and rounded design
+
+### Modernized Mobile Components
+- **Updated mobile-file-upload.tsx** with glass effects
+  - Animated file cards with staggered entry
+  - Modern drop zone with glass styling
+  - Gradient send button with glow
+  - Enhanced transfer progress display
+
+- **Updated modern-mobile-devices.tsx** with peer cards
+  - Glass-styled device cards with hover effects
+  - Animated status indicators
+  - Modern empty state with bouncing icon
+  - Gradient icons for selected devices
+
+- **Updated modern-mobile-home.tsx** with modern styling
+  - Glass file cards with animations
+  - Modern progress display with gradient
+  - Enhanced empty state design
+  - Gradient action buttons
+
+### Security Updates
+- **Critical vulnerability fixes** with dependency updates
+  - Updated Next.js from 15.5.2 to 15.5.9 (fixes RCE vulnerability)
+  - Updated eslint-config-next to 15.5.9
+  - Fixed axios DoS vulnerability
+  - Fixed glob command injection vulnerability
+  - Fixed js-yaml prototype pollution
+  - Zero vulnerabilities in npm audit
+
+### Technical Improvements
+- **CSS custom properties** for theming
+  - --gradient-start, --gradient-end for primary gradients
+  - --glow-color for luminous effects
+  - --glass-bg, --glass-border for glassmorphism
+  - Dark mode variants for all new properties
+
+- **Enhanced dark mode** support
+  - Properly tuned oklch colors for dark theme
+  - Adjusted glow intensity for dark backgrounds
+  - Consistent glass effects in both themes
+
+---
+
+## Version 0.9.6
 
 ### Progressive Web App (PWA) Implementation
 - **Complete PWA functionality** with offline capabilities and app installation

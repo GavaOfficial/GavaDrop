@@ -4,6 +4,14 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 
 ## Caratteristiche
 
+### UI Moderna v1.0
+- **Design glassmorphism** - Effetti vetro sfocato su tutta l'interfaccia
+- **Animazioni fluide** - Transizioni e animazioni su tutti gli elementi interattivi
+- **Gradienti e glow** - Pulsanti con gradiente e effetti luminosi
+- **Progress bar moderna** - Barra di progresso con gradiente, glow e shimmer
+- **Palette colori oklch** - Colori consistenti e moderni
+
+### Funzionalità Core
 - **Trasferimento file peer-to-peer** senza server
 - **Trasferimento cartelle complete** con compressione ZIP automatica
 - **Anteprime file integrate** - Visualizza immagini e icone per tutti i tipi di file
@@ -20,11 +28,11 @@ Un'applicazione moderna per la condivisione di file e cartelle nella rete locale
 - **Workflow senza interruzioni** - Rispondi ai trasferimenti senza aprire l'app
 - **Notifiche messaggi non letti** persistenti
 - **Persistenza di sessione** - ripristina lo stato dopo refresh
-- **Gestione disconnessione** con grazia period di 4 secondi
+- **Gestione disconnessione** con grace period di 4 secondi
 - **Auto-riconnessione** dispositivi con selezione automatica
 - **Cronologia trasferimenti completa** - Traccia tutti i file inviati/ricevuti con filtri
 - **Sistema di resend intelligente** - Reinvia file automaticamente dai dati salvati
-- **Trasferimenti ottimizzati** - Chunking dinamico e compressione intelligente  
+- **Trasferimenti ottimizzati** - Chunking dinamico e compressione intelligente
 - **Velocità adattiva** - Dimensione chunk ottimale basata sulla velocità di rete
 - **Notifiche audio sintetiche** - Suoni distintivi per ogni tipo di evento
 - Funziona solo nella rete locale per sicurezza
@@ -209,11 +217,11 @@ GavaDrop/
 │   └── icons/                   # Icone app per diverse piattaforme
 ├── server.js                    # Server di signaling Socket.IO con chat support
 ├── .env.example                 # Template configurazione ambiente
-├── package.json                 # Dipendenze e scripts (v0.9.6)
+├── package.json                 # Dipendenze e scripts (v1.0.0)
 ├── tsconfig.json               # Configurazione TypeScript
 ├── next.config.ts              # Configurazione Next.js
 ├── tailwind.config.ts          # Configurazione Tailwind CSS
-├── UPDATE.md                   # Cronologia aggiornamenti (v0.9.6)
+├── UPDATE.md                   # Cronologia aggiornamenti (v1.0.0)
 ├── test-pwa.html               # Test PWA functionality
 └── uploads/                    # File temporanei (ignorato da git)
 ```
