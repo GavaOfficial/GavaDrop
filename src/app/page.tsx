@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+
+// Debug logging - disabled in production
+const DEBUG = process.env.NODE_ENV !== 'production';
+const debug = (...args: unknown[]) => DEBUG && console.log(...args);
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -185,10 +189,10 @@ export default function Home() {
         const peerMessages = messages.get(peerId);
         if (peerMessages && peerMessages.length > 0) {
           const newestMessage = peerMessages[peerMessages.length - 1];
-          if (!newestMessage.isOwn) {
+          if (!newestMessage.isOwn && newestMessage.text) {
             latestMessageInfo = {
-              senderName: newestMessage.fromName,
-              messageText: newestMessage.text,
+              senderName: newestMessage.fromName || 'Unknown',
+              messageText: newestMessage.text || '',
               peerId: peerId
             };
           }
@@ -201,12 +205,13 @@ export default function Home() {
       if (latestMessageInfo) {
         // Truncate message if too long
         const { messageText, senderName, peerId } = latestMessageInfo as { senderName: string; messageText: string; peerId: string };
-        const messagePreview = messageText.length > 50 
-          ? messageText.substring(0, 50) + '...' 
-          : messageText;
+        const safeMessageText = messageText || '';
+        const messagePreview = safeMessageText.length > 50
+          ? safeMessageText.substring(0, 50) + '...'
+          : safeMessageText;
         notifyNative(
-          `${t("toast.messageFrom")} ${senderName}`,
-          messagePreview,
+          `${t("toast.messageFrom")} ${senderName || 'Unknown'}`,
+          messagePreview || t("toast.newMessage"),
           peerId
         );
       } else {
@@ -228,10 +233,10 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI?.onNotificationClick) {
       const handleNotificationClick = (data: { peerId?: string }) => {
-        console.log('🔔 Notification clicked with data:', data);
+        debug('Notification clicked with data:', data);
         
         if (data.peerId) {
-          console.log('📱 Opening chat and trying to select peer...');
+          debug('Opening chat and trying to select peer...');
           
           // Always open chat first
           setIsChatOpen(true);
@@ -240,25 +245,25 @@ export default function Home() {
           setTimeout(() => {
             const currentPeers = peersRef.current;
             const peer = currentPeers.find(p => p.clientId === data.peerId);
-            console.log('👥 Looking for peer with clientId:', data.peerId);
-            console.log('👥 Available peers:', currentPeers);
-            console.log('✅ Found peer:', peer);
+            debug('Looking for peer with clientId:', data.peerId);
+            debug('Available peers:', currentPeers);
+            debug('Found peer:', peer);
             
             if (peer) {
-              console.log('🎯 Setting selected peer to socketId:', peer.socketId);
+              debug('Setting selected peer to socketId:', peer.socketId);
               setSelectedPeer(peer.socketId);
             } else {
-              console.log('❌ Peer not found, available clientIds:', currentPeers.map(p => p.clientId));
+              debug('Peer not found, available clientIds:', currentPeers.map(p => p.clientId));
             }
           }, 100);
         }
       };
 
-      console.log('📝 Registering notification click handler');
+      debug('Registering notification click handler');
       window.electronAPI.onNotificationClick(handleNotificationClick);
 
       return () => {
-        console.log('🧹 Cleaning up notification click handler');
+        debug('Cleaning up notification click handler');
         if (window.electronAPI?.removeNotificationClickListener) {
           window.electronAPI.removeNotificationClickListener();
         }
@@ -353,9 +358,9 @@ export default function Home() {
   }, [pendingEncryptedFile, decryptPassword, decryptAttempts, peers, t]);
 
   const handleFileSend = useCallback(async () => {
-    console.log('handleFileSend called with:', selectedFiles.length, 'files,', selectedFolders.length, 'folders, selectedPeer:', selectedPeer);
+    debug('handleFileSend called with:', selectedFiles.length, 'files,', selectedFolders.length, 'folders, selectedPeer:', selectedPeer);
     if (selectedFiles.length === 0 && selectedFolders.length === 0 || !selectedPeer) {
-      console.log('Early return: no items or no peer selected');
+      debug('Early return: no items or no peer selected');
       return;
     }
 
@@ -726,7 +731,7 @@ export default function Home() {
       if (matchingPeer) {
         // Check if we need to update the selected peer to the new socketId
         if (!selectedPeer || selectedPeer !== matchingPeer.socketId) {
-          console.log('Auto-reselecting peer after page refresh or reconnection:', matchingPeer);
+          debug('Auto-reselecting peer after page refresh or reconnection:', matchingPeer);
           setSelectedPeer(matchingPeer.socketId);
         }
       } else if (selectedPeer) {
@@ -734,7 +739,7 @@ export default function Home() {
         const isCurrentlyDisconnected = Array.from(disconnectedPeers.values()).some(dp => dp.peer.socketId === selectedPeer);
         if (!isCurrentlyDisconnected) {
           // Peer is no longer anywhere, clear selection
-          console.log('Selected peer is no longer available, clearing selection');
+          debug('Selected peer is no longer available, clearing selection');
           setSelectedPeer(null);
           setLastSelectedClientId(null);
         }
@@ -756,14 +761,14 @@ export default function Home() {
         
         if (!isInGracePeriod && !hasReconnectedPeer) {
           // Peer is not in grace period and hasn't reconnected - grace period expired
-          console.log('Selected peer grace period expired, closing chat and clearing selection');
+          debug('Selected peer grace period expired, closing chat and clearing selection');
           setSelectedPeer(null);
           setIsChatOpen(false);
           setLastSelectedClientId(null);
         } else if (hasReconnectedPeer) {
-          console.log('Selected peer has reconnected, auto-reselection should handle this');
+          debug('Selected peer has reconnected, auto-reselection should handle this');
         } else {
-          console.log('Selected peer is in grace period, keeping chat open');
+          debug('Selected peer is in grace period, keeping chat open');
         }
       }
     }
@@ -1031,7 +1036,7 @@ export default function Home() {
                         }`}
                         onClick={() => {
                           const newSelection = isSelected ? null : peer.socketId;
-                          console.log('Selecting peer:', newSelection);
+                          debug('Selecting peer:', newSelection);
                           setSelectedPeer(newSelection);
                           
                           // Track the selected client ID for reconnection
@@ -1660,14 +1665,19 @@ export default function Home() {
                             {message.text}
                           </p>
                           <p className={`text-xs mt-1 ${
-                            message.isOwn 
-                              ? 'text-primary-foreground/70' 
+                            message.isOwn
+                              ? 'text-primary-foreground/70'
                               : 'text-muted-foreground'
                           }`}>
-                            {new Date(message.timestamp).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
+                            {(() => {
+                              const ts = message.timestamp;
+                              if (!ts || isNaN(Number(ts))) return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                              const normalizedTs = ts > 9999999999 ? ts : ts * 1000;
+                              const date = new Date(normalizedTs);
+                              return isNaN(date.getTime())
+                                ? new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                                : date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                            })()}
                           </p>
                         </div>
                       </div>
