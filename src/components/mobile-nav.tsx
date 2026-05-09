@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Menu, X, Wifi, Users, History as HistoryIcon, Settings, MessageCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LanguageToggle } from "@/components/language-toggle";
+import { LanguageSelector } from "@/components/language-selector";
 import { useLanguage } from "@/contexts/language-context";
 
 interface MobileNavProps {
@@ -70,7 +70,7 @@ export const MobileNav = ({
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <LanguageToggle />
+                      <LanguageSelector />
                       <ThemeToggle />
                     </div>
                   </SheetTitle>

@@ -18,8 +18,8 @@ const translations = {
     "app.description": "Condividi file facilmente nella tua rete locale",
     
     // Connection
-    "status.connected": "Connected",
-    "status.disconnected": "Disconnected",
+    "status.connected": "Connesso",
+    "status.disconnected": "Disconnesso",
     
     // Device
     "device.yourDevice": "Il tuo dispositivo",
@@ -32,11 +32,23 @@ const translations = {
     "device.deviceSelected": "Dispositivo selezionato",
     "device.reconnecting": "Riconnessione...",
     "device.reconnectionInProgress": "Tentativo di riconnessione in corso",
+    "device.offline": "Offline",
+    "chat.viewOnly": "Solo lettura",
     "device.devicesFound": "dispositivo trovato",
     "device.devicesFoundPlural": "dispositivi trovati",
     "device.connectionNotAvailable": "Connessione non disponibile",
     "device.openOnOtherDevices": "Apri GavaDrop su altri dispositivi della stessa rete per iniziare a condividere file",
     "device.search": "Cerca dispositivi...",
+    "device.namePlaceholder": "Nome dispositivo",
+    "device.onlineDevices": "Dispositivi online",
+    "device.recentOnlineDevices": "Dispositivi recenti online",
+    "device.recentOfflineDevices": "Dispositivi recenti offline",
+    "device.peopleOnline": "Persone online",
+    "device.searchPeopleOnline": "Cerca persone online...",
+    "device.noPeopleOnline": "Nessuna persona online",
+    "device.allPeopleAreRecent": "Tutte le persone online sono nei recenti",
+    "device.noResults": "Nessun risultato",
+    "device.recentWord": "recenti",
     
     // File Transfer
     "transfer.title": "Trasferimento File",
@@ -52,6 +64,7 @@ const translations = {
     "transfer.selectFiles": "Seleziona File",
     "transfer.selectFolder": "Seleziona Cartella",
     "transfer.queue": "Coda di Trasferimento",
+    "transfer.queueTitle": "Coda di trasferimento",
     "transfer.sendingTo": "Inviando a",
     "transfer.readyToSendTo": "Pronto per inviare a",
     "transfer.clearAll": "Cancella Tutto",
@@ -113,6 +126,8 @@ const translations = {
     // Languages
     "lang.italian": "Italiano",
     "lang.english": "English",
+    "lang.choose": "Lingua",
+    "lang.current": "Attiva",
     
     // Chat
     "chat.messages": "messaggi",
@@ -128,6 +143,15 @@ const translations = {
     "chat.selectDevice": "Seleziona un dispositivo",
     "chat.chooseFromDevices": "Scegli un dispositivo dalla scheda Dispositivi per iniziare una conversazione",
     "chat.noMessagesYet": "Nessun messaggio ancora",
+    "chat.reconnecting": "Riconnessione...",
+    "chat.deviceReconnecting": "Il dispositivo si sta riconnettendo...",
+    
+    // Activity
+    "activity.none": "Nessuna attività",
+    "activity.messageSent": "Messaggio inviato",
+    "activity.messageReceived": "Messaggio ricevuto",
+    "activity.fileSent": "File inviato",
+    "activity.fileReceived": "File ricevuto",
     
     // History
     "history.title": "Cronologia",
@@ -200,7 +224,23 @@ const translations = {
     // Misc
     "misc.devices": "Dispositivi",
     "misc.reconnecting": "Reconnecting...",
-    "misc.total": "Totale"
+    "misc.total": "Totale",
+
+    // PWA install prompt
+    "pwa.installTitle": "Installa GavaDrop",
+    "pwa.installTitleIos": "Installa GavaDrop su iOS",
+    "pwa.description": "Installa GavaDrop come app nativa per un accesso più veloce e funzioni offline.",
+    "pwa.iosStepShare": "Tocca il pulsante 'Condividi' in Safari",
+    "pwa.iosStepHome": "Seleziona 'Aggiungi alla schermata Home'",
+    "pwa.iosStepConfirm": "Conferma per installare l'app",
+    "pwa.stepInstall": "Clicca 'Installa' per aggiungere l'app",
+    "pwa.stepAvailable": "L'app sarà disponibile sul tuo dispositivo",
+    "pwa.stepQuickAccess": "Accesso rapido senza browser",
+    "pwa.installApp": "Installa App",
+    "pwa.instructions": "Istruzioni",
+    "pwa.notNow": "Non ora",
+    "pwa.iosAlert": "Per installare:\n1. Tocca il pulsante Condividi\n2. Seleziona \"Aggiungi alla schermata Home\"\n3. Tocca \"Aggiungi\"",
+    "pwa.unsupportedAlert": "Questo browser non supporta l'installazione automatica. Cerca l'opzione \"Installa app\" nel menu del browser."
   },
   en: {
     // App
@@ -223,11 +263,23 @@ const translations = {
     "device.deviceSelected": "Device selected",
     "device.reconnecting": "Reconnecting...",
     "device.reconnectionInProgress": "Reconnection attempt in progress",
+    "device.offline": "Offline",
+    "chat.viewOnly": "View only",
     "device.devicesFound": "device found",
     "device.devicesFoundPlural": "devices found",
     "device.connectionNotAvailable": "Connection not available",
     "device.openOnOtherDevices": "Open GavaDrop on other devices on the same network to start sharing files",
     "device.search": "Search devices...",
+    "device.namePlaceholder": "Device name",
+    "device.onlineDevices": "Online devices",
+    "device.recentOnlineDevices": "Recent online devices",
+    "device.recentOfflineDevices": "Recent offline devices",
+    "device.peopleOnline": "People online",
+    "device.searchPeopleOnline": "Search people online...",
+    "device.noPeopleOnline": "No people online",
+    "device.allPeopleAreRecent": "All online people are in recent",
+    "device.noResults": "No results",
+    "device.recentWord": "recent",
     
     // File Transfer
     "transfer.title": "File Transfer",
@@ -243,6 +295,7 @@ const translations = {
     "transfer.selectFiles": "Select Files",
     "transfer.selectFolder": "Select Folder",
     "transfer.queue": "Transfer Queue",
+    "transfer.queueTitle": "Transfer queue",
     "transfer.sendingTo": "Sending to",
     "transfer.readyToSendTo": "Ready to send to",
     "transfer.clearAll": "Clear All",
@@ -304,6 +357,8 @@ const translations = {
     // Languages
     "lang.italian": "Italiano",
     "lang.english": "English",
+    "lang.choose": "Language",
+    "lang.current": "Active",
     
     // Chat
     "chat.messages": "messages",
@@ -319,6 +374,15 @@ const translations = {
     "chat.selectDevice": "Select a device",
     "chat.chooseFromDevices": "Choose a device from the Devices tab to start a conversation",
     "chat.noMessagesYet": "No messages yet",
+    "chat.reconnecting": "Reconnecting...",
+    "chat.deviceReconnecting": "Device is reconnecting...",
+    
+    // Activity
+    "activity.none": "No activity",
+    "activity.messageSent": "Message sent",
+    "activity.messageReceived": "Message received",
+    "activity.fileSent": "File sent",
+    "activity.fileReceived": "File received",
     
     // History
     "history.title": "History",
@@ -391,7 +455,23 @@ const translations = {
     // Misc
     "misc.devices": "Devices",
     "misc.reconnecting": "Reconnecting...",
-    "misc.total": "Total"
+    "misc.total": "Total",
+
+    // PWA install prompt
+    "pwa.installTitle": "Install GavaDrop",
+    "pwa.installTitleIos": "Install GavaDrop on iOS",
+    "pwa.description": "Install GavaDrop as a native app for faster access and offline features.",
+    "pwa.iosStepShare": "Tap the 'Share' button in Safari",
+    "pwa.iosStepHome": "Select 'Add to Home Screen'",
+    "pwa.iosStepConfirm": "Confirm to install the app",
+    "pwa.stepInstall": "Click 'Install' to add the app",
+    "pwa.stepAvailable": "The app will be available on your device",
+    "pwa.stepQuickAccess": "Quick access without the browser",
+    "pwa.installApp": "Install App",
+    "pwa.instructions": "Instructions",
+    "pwa.notNow": "Not now",
+    "pwa.iosAlert": "To install:\n1. Tap the Share button\n2. Select \"Add to Home Screen\"\n3. Tap \"Add\"",
+    "pwa.unsupportedAlert": "This browser does not support automatic installation. Look for the \"Install app\" option in the browser menu."
   }
 }
 

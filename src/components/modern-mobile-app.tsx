@@ -21,7 +21,6 @@ import { ModernMobileHome } from "@/components/modern-mobile-home";
 import { ModernMobileDevices } from "@/components/modern-mobile-devices";
 import { ModernMobileChat } from "@/components/modern-mobile-chat";
 import { TransferHistory } from "@/components/transfer-history";
-import Image from "next/image";
 
 interface ModernMobileAppProps {
   selectedFiles: File[];
@@ -284,10 +283,23 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     }
   };
 
+  const tabBackgrounds: Record<typeof activeTab, string> = {
+    home:    'rgba(201, 166, 255, 0.06)',
+    devices: 'rgba(96,  165, 250, 0.06)',
+    chat:    'rgba(52,  211, 153, 0.06)',
+    history: 'rgba(251, 191,  36, 0.06)',
+  };
+
   return (
     <>
       <div className="h-full flex flex-col">
-        <div className="flex-1 overflow-hidden">
+        <div
+          className="flex-1 overflow-hidden"
+          style={{
+            backgroundColor: tabBackgrounds[activeTab],
+            transition: 'background-color 0.45s ease',
+          }}
+        >
           {renderActiveTab()}
         </div>
         <MobileBottomNav
@@ -301,45 +313,35 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
       {/* File Request Dialog */}
       <AlertDialog open={!!incomingFileRequestProp}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-3">
-              <Image 
-                src="/icon.png" 
-                alt="GavaDrop" 
-                width={24} 
-                height={24}
-                className="w-6 h-6"
-              />
-{t("dialog.fileRequest")}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
-                  <FilePreviewMetadata 
-                    fileName={incomingFileRequestProp?.fileName || ''}
-                    size="medium"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground truncate">
-                      {incomingFileRequestProp?.fileName}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {incomingFileRequestProp ? formatFileSize(incomingFileRequestProp.fileSize) : ''}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground">
-{incomingFileRequestProp?.fromName} {t("dialog.wantsToSend")} {t("message.thisFile")}. {t("dialog.acceptFile")}
-                </div>
+          <div className="border-b border-white/[0.06] px-6 py-5">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e6d5ff] text-black">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>
+                </span>
+                <span className="min-w-0">
+                  <span className="block">{t("dialog.fileRequest")}</span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-white/45">{incomingFileRequestProp?.fromName}</span>
+                </span>
+              </AlertDialogTitle>
+            </AlertDialogHeader>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.035] p-4">
+              <FilePreviewMetadata fileName={incomingFileRequestProp?.fileName || ''} size="medium" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">{incomingFileRequestProp?.fileName}</p>
+                <p className="mt-1 text-xs text-white/40">{incomingFileRequestProp ? formatFileSize(incomingFileRequestProp.fileSize) : ''}</p>
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </div>
+            <p className="mt-4 text-sm text-white/50">{t("dialog.acceptFile")}</p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => incomingFileRequestProp && rejectFile(incomingFileRequestProp.socketId)}>
-{t("dialog.reject")}
+              {t("dialog.reject")}
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => incomingFileRequestProp && acceptFile(incomingFileRequestProp.socketId)}>
-{t("dialog.accept")}
+              {t("dialog.accept")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -347,52 +349,42 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
 
       {/* Batch File Request Dialog */}
       <AlertDialog open={!!incomingBatchRequestProp}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-3">
-              <Image 
-                src="/icon.png" 
-                alt="GavaDrop" 
-                width={24} 
-                height={24}
-                className="w-6 h-6"
-              />
-{t("dialog.fileRequest")} Multipli
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {incomingBatchRequestProp?.fromName} vuole inviarti {incomingBatchRequestProp?.files.length} file
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          
-          <div className="max-h-40 overflow-y-auto space-y-2 my-4">
-            {incomingBatchRequestProp?.files.map((file, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                <FilePreviewMetadata 
-                  fileName={file.fileName}
-                  size="small"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">
-                    {file.fileName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatFileSize(file.fileSize)}
-                  </p>
-                </div>
-              </div>
-            ))}
+        <AlertDialogContent className="sm:max-w-[500px]">
+          <div className="border-b border-white/[0.06] px-6 py-5">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e6d5ff] text-black">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M224,48H32A16,16,0,0,0,16,64V192a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48Zm0,144H32V64H224ZM72,104a8,8,0,0,1,8-8H176a8,8,0,0,1,0,16H80A8,8,0,0,1,72,104Zm0,40a8,8,0,0,1,8-8H176a8,8,0,0,1,0,16H80A8,8,0,0,1,72,144Z"/></svg>
+                </span>
+                <span className="min-w-0">
+                  <span className="block">{t("dialog.multipleFilesRequest")}</span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-white/45">{incomingBatchRequestProp?.fromName}</span>
+                </span>
+              </AlertDialogTitle>
+            </AlertDialogHeader>
           </div>
-
+          <div className="px-6 py-5">
+            <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+              {incomingBatchRequestProp?.files.map((file, index) => (
+                <div key={index} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] p-3">
+                  <FilePreviewMetadata fileName={file.fileName} size="small" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">{file.fileName}</p>
+                    <p className="mt-0.5 text-xs text-white/40">{formatFileSize(file.fileSize)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-xl border border-[#c9a6ff]/15 bg-[#c9a6ff]/10 px-4 py-3 text-sm text-white/70">
+              {t("dialog.total")}: <span className="font-medium text-white">{incomingBatchRequestProp?.files.length} {t("dialog.files")} · {incomingBatchRequestProp ? formatFileSize(incomingBatchRequestProp.files.reduce((s, f) => s + f.fileSize, 0)) : ''}</span>
+            </div>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel 
-              onClick={() => incomingBatchRequestProp && rejectBatchFiles(incomingBatchRequestProp.socketId, incomingBatchRequestProp.batchId)}
-            >
-{t("dialog.reject")} Tutto
+            <AlertDialogCancel onClick={() => incomingBatchRequestProp && rejectBatchFiles(incomingBatchRequestProp.socketId, incomingBatchRequestProp.batchId)}>
+              {t("dialog.rejectAll")}
             </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => incomingBatchRequestProp && acceptBatchFiles(incomingBatchRequestProp.socketId, incomingBatchRequestProp.batchId)}
-            >
-{t("dialog.accept")} Tutto
+            <AlertDialogAction onClick={() => incomingBatchRequestProp && acceptBatchFiles(incomingBatchRequestProp.socketId, incomingBatchRequestProp.batchId)}>
+              {t("dialog.acceptAll")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -401,49 +393,42 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
       {/* Decrypt Dialog */}
       <AlertDialog open={showDecryptDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-3">
-              <Lock className="h-6 w-6 text-green-600" />
-              File Crittografato
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4">
-                <div>
-                  Hai ricevuto il file crittografato <strong>{pendingEncryptedFile?.fileName}</strong>
-                </div>
-                <div>
-                  Inserisci la password per decrittografarlo:
-                </div>
-                {decryptAttempts > 0 && (
-                  <div className="text-orange-600 dark:text-orange-400 text-sm font-medium">
-                    {3 - decryptAttempts} tentativo{3 - decryptAttempts === 1 ? '' : 'i'} rimasto{3 - decryptAttempts === 1 ? '' : 'i'}
-                  </div>
-                )}
-                <Input
-                  type="password"
-                  placeholder="Inserisci password"
-                  value={decryptPassword}
-                  onChange={(e) => setDecryptPassword(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleDecryptFile();
-                  }}
-                  className="mt-2"
-                />
+          <div className="border-b border-white/[0.06] px-6 py-5">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#dff36b]/15 text-[#dff36b]">
+                  <Lock className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block">{t("encryption.fileEncrypted")}</span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-white/45">{pendingEncryptedFile?.fileName}</span>
+                </span>
+              </AlertDialogTitle>
+            </AlertDialogHeader>
+          </div>
+          <div className="space-y-4 px-6 py-5">
+            <p className="text-sm text-white/50">{t("encryption.enterPassword")}</p>
+            {decryptAttempts > 0 && (
+              <div className="flex items-center gap-2 rounded-xl border border-orange-400/20 bg-orange-400/10 px-4 py-3 text-sm font-medium text-orange-300">
+                {3 - decryptAttempts === 1 ? t("encryption.attentionAttempts") : t("encryption.attentionAttemptsPlural")} {3 - decryptAttempts}
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            )}
+            <Input
+              type="password"
+              placeholder={t("encryption.passwordPlaceholderDecrypt")}
+              value={decryptPassword}
+              onChange={(e) => setDecryptPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDecryptFile(); }}
+              className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] text-white placeholder:text-white/30 focus-visible:ring-[#c9a6ff]"
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowDecryptDialog(false);
-              setDecryptPassword("");
-              setDecryptAttempts(0);
-              setPendingEncryptedFile(null);
-            }}>
-              Annulla
+            <AlertDialogCancel onClick={() => { setShowDecryptDialog(false); setDecryptPassword(""); setDecryptAttempts(0); setPendingEncryptedFile(null); }}>
+              {t("encryption.cancel")}
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDecryptFile} disabled={!decryptPassword.trim()}>
-              <Lock className="h-4 w-4 mr-2" />
-              Decritta e Scarica
+            <AlertDialogAction onClick={handleDecryptFile} disabled={!decryptPassword.trim()} className="bg-[#dff36b] text-black hover:bg-[#cfe05a]">
+              <Lock className="h-4 w-4" />
+              {t("encryption.decryptAndDownload")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

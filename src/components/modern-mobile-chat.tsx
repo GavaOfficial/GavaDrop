@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   MessageCircle, 
   Send, 
@@ -135,9 +134,9 @@ export const ModernMobileChat = ({
 
   if (!selectedPeer) {
     return (
-      <div className="flex flex-col h-full bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="flex flex-col h-full bg-background">
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <div className="p-6 bg-muted/30 rounded-full mb-6">
+          <div className="p-6 bg-muted/50 rounded-md mb-6">
             <MessageCircle className="h-16 w-16 text-muted-foreground/50" />
           </div>
           <h3 className="text-xl font-semibold text-foreground mb-2">
@@ -152,12 +151,12 @@ export const ModernMobileChat = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-background/95 backdrop-blur-md border-b border-border/20">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-accent rounded-md flex items-center justify-center">
               <User className="h-6 w-6 text-primary" />
             </div>
             {isConnected && (
@@ -187,7 +186,7 @@ export const ModernMobileChat = ({
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
-            <div className="p-6 bg-primary/10 rounded-full mb-4">
+            <div className="p-6 bg-accent rounded-md mb-4">
               <MessageCircle className="h-12 w-12 text-primary" />
             </div>
             <h4 className="text-lg font-semibold text-foreground mb-2">
@@ -203,7 +202,7 @@ export const ModernMobileChat = ({
               <div key={dateString}>
                 {/* Date Separator */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className="px-3 py-1 bg-muted/60 rounded-full">
+                  <div className="px-3 py-1 bg-muted/60 rounded-md">
                     <span className="text-xs font-medium text-muted-foreground">
                       {formatDateGroup(dateString)}
                     </span>
@@ -280,7 +279,7 @@ export const ModernMobileChat = ({
           <Button
             onClick={scrollToBottom}
             size="sm"
-            className="rounded-full w-12 h-12 p-0 shadow-lg bg-primary hover:bg-primary/90"
+            className="rounded-md w-12 h-12 p-0 bg-primary hover:bg-primary/90"
           >
             <ArrowDown className="h-5 w-5" />
           </Button>
@@ -303,7 +302,7 @@ export const ModernMobileChat = ({
               }}
               placeholder={isConnected ? t("chat.typeMessage") : t("chat.offline")}
               disabled={!selectedPeer || !isConnected}
-              className="w-full resize-none rounded-3xl border-2 border-border/30 bg-muted/30 px-4 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:bg-background disabled:cursor-not-allowed disabled:opacity-50 min-h-[48px] max-h-[120px]"
+              className="w-full resize-none rounded-md border border-border bg-card px-4 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:bg-background disabled:cursor-not-allowed disabled:opacity-50 min-h-[48px] max-h-[120px]"
               style={{ 
                 WebkitAppearance: 'none',
                 fontSize: '16px' // Prevents zoom on iOS
@@ -315,7 +314,7 @@ export const ModernMobileChat = ({
             onClick={handleSend}
             disabled={!inputMessage.trim() || !selectedPeer || !isConnected}
             size="sm"
-            className="rounded-full w-12 h-12 p-0 flex-shrink-0 bg-primary hover:bg-primary/90 disabled:opacity-50"
+            className="rounded-md w-12 h-12 p-0 flex-shrink-0 bg-primary hover:bg-primary/90 disabled:opacity-50"
           >
             <Send className="h-5 w-5" />
           </Button>

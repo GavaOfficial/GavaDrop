@@ -3,22 +3,16 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { 
   Upload, 
-  FileImage, 
-  FileText, 
-  FileVideo, 
-  File,
   X,
   Folder,
   Send,
   Wifi,
   WifiOff,
   Plus,
-  ChevronRight,
   Zap,
   Lock,
   Unlock
@@ -85,14 +79,6 @@ export const ModernMobileHome = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (file: File) => {
-    const type = file.type;
-    if (type.startsWith('image/')) return FileImage;
-    if (type.startsWith('video/')) return FileVideo;
-    if (type.includes('text') || type.includes('json') || type.includes('xml')) return FileText;
-    return File;
-  };
-
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -112,11 +98,11 @@ export const ModernMobileHome = ({
   const totalItems = selectedFiles.length + selectedFolders.length;
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex flex-col h-full bg-background">
       {/* Header Status */}
       <div className="px-6 py-4">
         <div className="flex items-center gap-3 mb-2">
-          <div className={`p-2 rounded-full ${isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+          <div className={`p-2 rounded-md ${isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
             {isConnected ? (
               <Wifi className="h-5 w-5 text-green-600 dark:text-green-400" />
             ) : (
@@ -137,10 +123,10 @@ export const ModernMobileHome = ({
       {/* Transfer Progress */}
       {transferProgress && (
         <div className="mx-6 mb-4">
-          <Card className="glass-card p-4 animate-fade-in-up">
+          <Card className="p-4 border-border bg-card animate-fade-in-up">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 gradient-primary rounded-2xl glow-sm">
-                <Zap className="h-5 w-5 text-white" />
+              <div className="p-2.5 bg-accent rounded-md">
+                <Zap className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate">
@@ -150,11 +136,11 @@ export const ModernMobileHome = ({
                   {Math.round(transferProgress.progress)}% completato
                 </p>
               </div>
-              <div className="text-2xl font-bold gradient-text">
+              <div className="text-2xl font-semibold text-primary">
                 {Math.round(transferProgress.progress)}%
               </div>
             </div>
-            <Progress value={transferProgress.progress} variant="glow" />
+            <Progress value={transferProgress.progress} />
           </Card>
         </div>
       )}
@@ -162,11 +148,11 @@ export const ModernMobileHome = ({
       {/* File Drop Zone */}
       <div className="flex-1 px-6 overflow-hidden">
         <div
-          className={`h-full border-2 border-dashed rounded-3xl transition-smooth ${
+          className={`h-full border-2 border-dashed rounded-lg transition-smooth bg-card ${
             isDragOver && selectedPeer
-              ? "border-primary glow scale-[1.02] glass-card"
-              : selectedPeer
-              ? "border-primary/30 hover:border-primary/60 glass-subtle hover-lift"
+              ? "border-primary bg-accent/60 scale-[1.01]"
+            : selectedPeer
+              ? "border-border hover:border-primary/60 hover:bg-accent/25"
               : "border-muted bg-muted/20"
           }`}
           onDragOver={(e) => {
@@ -197,7 +183,7 @@ export const ModernMobileHome = ({
                     size="sm"
                     onClick={onClearAll}
                     disabled={isSending}
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -219,7 +205,7 @@ export const ModernMobileHome = ({
                 {selectedFolders.map((folder, index) => (
                   <Card key={`folder-${index}`} className="file-card-modern animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-xl">
+                      <div className="p-2.5 bg-amber-100 dark:bg-amber-950/40 rounded-md">
                         <Folder className="h-5 w-5 text-amber-500" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -245,7 +231,6 @@ export const ModernMobileHome = ({
 
                 {/* Files */}
                 {selectedFiles.map((file, index) => {
-                  const FileIcon = getFileIcon(file);
                   return (
                     <Card key={`file-${index}`} className="file-card-modern animate-fade-in-up" style={{ animationDelay: `${(selectedFolders.length + index) * 50}ms` }}>
                       <div className="flex items-center gap-3">
@@ -277,9 +262,9 @@ export const ModernMobileHome = ({
 
               {/* Encryption Section */}
               <div className="mt-4">
-                <Card className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+                <Card className="p-4 bg-card border-border">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-xl">
+                    <div className="p-2 bg-accent rounded-md">
                       {isEncryptionEnabled ? (
                         <Lock className="h-5 w-5 text-green-600 dark:text-green-400" />
                       ) : (
@@ -288,7 +273,7 @@ export const ModernMobileHome = ({
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <span className="font-medium text-green-900 dark:text-green-100">
+                        <span className="font-medium text-foreground">
                           {t("file.encryption")}
                         </span>
                         <Button
@@ -297,8 +282,8 @@ export const ModernMobileHome = ({
                           onClick={() => onToggleEncryption(!isEncryptionEnabled)}
                           className={`h-8 px-3 ${
                             isEncryptionEnabled 
-                              ? 'bg-green-600 hover:bg-green-700 text-white' 
-                              : 'border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/30'
+                              ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
+                              : 'border-border text-foreground hover:bg-accent'
                           }`}
                         >
                           {isEncryptionEnabled ? t("file.enabled") : t("file.disabled")}
@@ -310,7 +295,7 @@ export const ModernMobileHome = ({
                           placeholder={t("file.encryptionPassword")}
                           value={encryptionPassword}
                           onChange={(e) => onPasswordChange(e.target.value)}
-                          className="mt-3 bg-white dark:bg-gray-800 border-green-200 dark:border-green-700 focus:border-green-400 dark:focus:border-green-500"
+                          className="mt-3 bg-background border-input"
                         />
                       )}
                     </div>
@@ -324,7 +309,7 @@ export const ModernMobileHome = ({
                   onClick={onSend}
                   disabled={!selectedPeer || isSending}
                   size="lg"
-                  className="w-full h-14 text-lg font-semibold gradient-primary hover:opacity-90 transition-smooth btn-modern glow"
+                  className="w-full h-14 text-lg font-semibold transition-smooth"
                 >
                   {isSending ? (
                     <>
@@ -348,8 +333,8 @@ export const ModernMobileHome = ({
                 }`} />
               </div>
 
-              <h3 className={`text-xl font-bold mb-2 ${
-                selectedPeer ? 'gradient-text' : 'text-muted-foreground'
+              <h3 className={`text-xl font-semibold mb-2 ${
+                selectedPeer ? 'text-foreground' : 'text-muted-foreground'
               }`}>
                 {selectedPeer ? t("transfer.dragFilesHere") : t("transfer.selectDeviceToStart")}
               </h3>
@@ -366,7 +351,7 @@ export const ModernMobileHome = ({
                   <Button
                     onClick={handleFileSelect}
                     size="lg"
-                    className="w-full gap-3 h-12 gradient-primary btn-modern hover:opacity-90 transition-smooth"
+                    className="w-full gap-3 h-12 transition-smooth"
                   >
                     <Upload className="h-5 w-5" />
                     {t("transfer.selectFiles")}
@@ -375,7 +360,7 @@ export const ModernMobileHome = ({
                     onClick={onFolderSelect}
                     size="lg"
                     variant="outline"
-                    className="w-full gap-3 h-12 glass hover:bg-primary/10 hover:border-primary/50 transition-smooth"
+                    className="w-full gap-3 h-12 bg-card hover:bg-accent hover:border-primary/40 transition-smooth"
                   >
                     <Folder className="h-5 w-5" />
                     {t("transfer.selectFolder")}

@@ -1,7 +1,14 @@
 "use client";
 
 import React from 'react';
-import { File, FileText, FileImage, FileVideo, FileAudio, Archive } from 'lucide-react';
+import {
+  ArchiveIcon,
+  FileIcon,
+  FileTextIcon,
+  ImageSquareIcon,
+  SpeakerHighIcon,
+  VideoIcon,
+} from '@phosphor-icons/react';
 
 interface FilePreviewMetadataProps {
   fileName: string;
@@ -24,35 +31,38 @@ export const FilePreviewMetadata: React.FC<FilePreviewMetadataProps> = ({
   const isArchive = /\.(zip|rar|7z|tar|gz)$/i.test(fileName) || ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed'].includes(fileType);
 
   const sizeClasses = {
-    small: 'w-12 h-12',
-    medium: 'w-16 h-16', 
-    large: 'w-24 h-24'
+    small: 'h-12 w-12 rounded-xl',
+    medium: 'h-16 w-16 rounded-2xl',
+    large: 'h-24 w-24 rounded-2xl'
+  };
+
+  const iconClasses = {
+    small: 'h-5 w-5',
+    medium: 'h-7 w-7',
+    large: 'h-10 w-10'
   };
 
   const getFileIcon = () => {
-    if (isImage) return FileImage;
-    if (isVideo) return FileVideo;
-    if (isAudio) return FileAudio;
-    if (isPdf || isText) return FileText;
-    if (isArchive) return Archive;
-    return File;
+    if (isImage) return ImageSquareIcon;
+    if (isVideo) return VideoIcon;
+    if (isAudio) return SpeakerHighIcon;
+    if (isPdf || isText) return FileTextIcon;
+    if (isArchive) return ArchiveIcon;
+    return FileIcon;
   };
 
-  const getIconColor = () => {
-    if (isImage) return 'from-green-500 to-emerald-600';
-    if (isVideo) return 'from-red-500 to-pink-600';
-    if (isAudio) return 'from-purple-500 to-violet-600';
-    if (isPdf) return 'from-red-600 to-red-700';
-    if (isText) return 'from-blue-500 to-cyan-600';
-    if (isArchive) return 'from-yellow-500 to-orange-600';
-    return 'from-gray-500 to-slate-600';
+  const getThemeClasses = () => {
+    if (isAudio) return 'bg-[#dff36b]/15 text-[#dff36b]';
+    if (isArchive) return 'bg-[#f2d45d]/15 text-[#f2d45d]';
+    if (isImage || isVideo) return 'bg-[#c9a6ff]/15 text-[#c9a6ff]';
+    return 'bg-white/[0.04] text-white/55';
   };
 
-  const FileIcon = getFileIcon();
+  const PreviewIcon = getFileIcon();
 
   return (
-    <div className={`${sizeClasses[size]} ${className} flex items-center justify-center rounded-lg bg-gradient-to-br ${getIconColor()} text-white shadow-sm`}>
-      <FileIcon className="w-1/2 h-1/2" />
+    <div className={`${sizeClasses[size]} ${className} flex items-center justify-center ${getThemeClasses()}`}>
+      <PreviewIcon className={iconClasses[size]} weight="duotone" />
     </div>
   );
 };

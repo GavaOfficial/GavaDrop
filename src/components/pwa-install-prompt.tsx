@@ -104,21 +104,21 @@ export const PWAInstallPrompt = () => {
     
     if (isIOS && isSafari) {
       return {
-        title: "Installa GavaDrop su iOS",
+        title: t("pwa.installTitleIos"),
         steps: [
-          { icon: Share, text: "Tocca il pulsante 'Condividi' in Safari" },
-          { icon: Plus, text: "Seleziona 'Aggiungi alla schermata Home'" },
-          { icon: Smartphone, text: "Conferma per installare l'app" }
+          { icon: Share, text: t("pwa.iosStepShare") },
+          { icon: Plus, text: t("pwa.iosStepHome") },
+          { icon: Smartphone, text: t("pwa.iosStepConfirm") }
         ]
       };
     }
     
     return {
-      title: "Installa GavaDrop",
+      title: t("pwa.installTitle"),
       steps: [
-        { icon: Download, text: "Clicca 'Installa' per aggiungere l'app" },
-        { icon: getDeviceIcon(), text: "L'app sarà disponibile sul tuo dispositivo" },
-        { icon: Smartphone, text: "Accesso rapido senza browser" }
+        { icon: Download, text: t("pwa.stepInstall") },
+        { icon: getDeviceIcon(), text: t("pwa.stepAvailable") },
+        { icon: Smartphone, text: t("pwa.stepQuickAccess") }
       ]
     };
   };
@@ -149,7 +149,7 @@ export const PWAInstallPrompt = () => {
               <Badge variant="secondary" className="text-xs">PWA</Badge>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Installa GavaDrop come app nativa per un accesso più veloce e funzioni offline.
+              {t("pwa.description")}
             </p>
           </div>
           <Button
@@ -188,7 +188,7 @@ export const PWAInstallPrompt = () => {
               className="flex-1 h-9 text-xs bg-primary hover:bg-primary/90"
             >
               <Download className="h-4 w-4 mr-2" />
-              Installa App
+              {t("pwa.installApp")}
             </Button>
           ) : (
             <Button
@@ -199,14 +199,14 @@ export const PWAInstallPrompt = () => {
                 // For iOS or browsers that don't support the install prompt
                 if (isIOS && isSafari) {
                   // Show instructions for iOS
-                  alert('Per installare:\n1. Tocca il pulsante Condividi (⬆️)\n2. Seleziona "Aggiungi alla schermata Home"\n3. Tocca "Aggiungi"');
+                  alert(t("pwa.iosAlert"));
                 } else {
-                  alert('Questo browser non supporta l\'installazione automatica. Cerca l\'opzione "Installa app" nel menu del browser.');
+                  alert(t("pwa.unsupportedAlert"));
                 }
               }}
             >
               <DeviceIcon className="h-4 w-4 mr-2" />
-              Istruzioni
+              {t("pwa.instructions")}
             </Button>
           )}
           
@@ -216,7 +216,7 @@ export const PWAInstallPrompt = () => {
             onClick={handleDismiss}
             className="px-3 h-9 text-xs text-muted-foreground"
           >
-            Non ora
+            {t("pwa.notNow")}
           </Button>
         </div>
       </Card>

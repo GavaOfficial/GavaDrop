@@ -80,11 +80,11 @@ export const ModernMobileDevices = ({
   const disconnectedPeersList = Array.from(disconnectedPeers.values());
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="px-6 py-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className={`p-3 rounded-2xl ${isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+          <div className={`p-3 rounded-md ${isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
             {isConnected ? (
               <Wifi className="h-6 w-6 text-green-600 dark:text-green-400" />
             ) : (
@@ -92,7 +92,7 @@ export const ModernMobileDevices = ({
             )}
           </div>
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-foreground">{t("nav.devices")}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t("nav.devices")}</h2>
             <p className="text-sm text-muted-foreground">
 {isConnected ? 
                 `${peers.length + disconnectedPeersList.length} ${peers.length + disconnectedPeersList.length === 1 ? t("device.devicesFound") : t("device.devicesFoundPlural")}` : 
@@ -104,10 +104,10 @@ export const ModernMobileDevices = ({
 
         {/* My Device Card */}
         {deviceInfo && (
-          <Card className="p-4 glass-card border-primary/20 mb-4 animate-fade-in-up">
+          <Card className="p-4 bg-card border-border mb-4 animate-fade-in-up">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 gradient-primary rounded-xl glow-sm">
-                <Monitor className="h-5 w-5 text-white" />
+              <div className="p-2.5 bg-accent rounded-md">
+                <Monitor className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
                 {isEditingName ? (
@@ -157,7 +157,7 @@ placeholder={t("device.yourDevice")}
               placeholder={t("device.search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-muted/30 border-0 rounded-2xl"
+              className="pl-10 bg-card border-border rounded-md"
             />
           </div>
         )}
@@ -198,8 +198,8 @@ placeholder={t("device.yourDevice")}
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-2xl transition-smooth ${
-                      isSelected ? 'gradient-primary glow-sm' : 'bg-muted'
+                    <div className={`p-3 rounded-md transition-smooth ${
+                      isSelected ? 'bg-primary' : 'bg-muted'
                     }`}>
                       <DeviceIcon className={`h-6 w-6 ${
                         isSelected ? 'text-white' : 'text-muted-foreground'
@@ -213,7 +213,7 @@ placeholder={t("device.yourDevice")}
                         }`}>
                           {peer.deviceName}
                         </p>
-                        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs">
+                      <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs">
                           <Zap className="h-3 w-3 mr-1" />
 {t("chat.online")}
                         </Badge>
@@ -271,7 +271,7 @@ placeholder={t("device.yourDevice")}
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-2xl ${
+                    <div className={`p-3 rounded-md ${
                       isSelected ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-muted'
                     }`}>
                       <DeviceIcon className={`h-6 w-6 ${

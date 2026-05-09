@@ -7,18 +7,21 @@ const { v4: uuidv4 } = require('uuid');
 const DEBUG = process.env.NODE_ENV !== 'production';
 const log = (...args) => DEBUG && console.log(...args);
 
-// Rate limiting configuration
 const RATE_LIMIT = {
     maxEvents: 100,
     windowMs: 60000,
     blockDurationMs: 60000
 };
 
-// Sanitization configuration
 const SANITIZE = {
     maxDeviceNameLength: 50,
     maxFileNameLength: 255,
     maxMessageLength: 5000
+};
+
+const CHAT = {
+    maxQueuePerClient: 200,
+    messageTtlMs: 24 * 60 * 60 * 1000 // 24 hours
 };
 
 // === CORS CONFIGURATION ===
@@ -55,9 +58,8 @@ function checkRateLimit(socketId) {
         rateLimitMap.set(socketId, entry);
     }
 
-    if (entry.blocked && now < entry.blockedUntil) {
-        return false;
-    } else if (entry.blocked && now >= entry.blockedUntil) {
+    if (entry.blocked && now < entry.blockedUntil) return false;
+    if (entry.blocked && now >= entry.blockedUntil) {
         entry.blocked = false;
         entry.count = 0;
         entry.windowStart = now;
@@ -104,14 +106,13 @@ function sanitizeFileName(name) {
         .slice(0, SANITIZE.maxFileNameLength);
 }
 
-// Sanitize chat message object (NOT the whole object, just the text field)
-function sanitizeChatMessage(message) {
-    if (!message || typeof message !== 'object') return message;
+function sanitizeMessage(message) {
+    if (!message || typeof message !== 'object') return null;
     return {
         ...message,
         text: typeof message.text === 'string'
             ? message.text.slice(0, SANITIZE.maxMessageLength)
-            : message.text
+            : ''
     };
 }
 
@@ -151,9 +152,48 @@ const io = new Server(server, {
 });
 
 // === DATA STORES ===
-const rooms = new Map();
-const clients = new Map();
-const persistentClients = new Map();
+const rooms = new Map();           // roomId → Set<socketId>
+const clients = new Map();         // socketId → ClientInfo
+const clientIdToSocket = new Map();// clientId → socketId (current connection)
+
+// === CHAT MESSAGE QUEUE ===
+// Stores messages for offline recipients, keyed by recipient clientId
+// Each entry: { message, fromClientId, fromName, queuedAt }
+const messageQueues = new Map();
+
+function pruneExpiredMessages(clientId) {
+    const queue = messageQueues.get(clientId);
+    if (!queue) return;
+    const cutoff = Date.now() - CHAT.messageTtlMs;
+    const fresh = queue.filter(m => m.queuedAt > cutoff);
+    if (fresh.length === 0) {
+        messageQueues.delete(clientId);
+    } else {
+        messageQueues.set(clientId, fresh);
+    }
+}
+
+function queueMessageForClient(targetClientId, payload) {
+    pruneExpiredMessages(targetClientId);
+    const queue = messageQueues.get(targetClientId) || [];
+    queue.push({ ...payload, queuedAt: Date.now() });
+    // Cap queue size per recipient
+    messageQueues.set(targetClientId, queue.slice(-CHAT.maxQueuePerClient));
+}
+
+function popPendingMessages(clientId) {
+    pruneExpiredMessages(clientId);
+    const msgs = messageQueues.get(clientId) || [];
+    messageQueues.delete(clientId);
+    return msgs;
+}
+
+// Periodically clean up expired messages (every hour)
+setInterval(() => {
+    for (const clientId of messageQueues.keys()) {
+        pruneExpiredMessages(clientId);
+    }
+}, 60 * 60 * 1000);
 
 // === HELPER FUNCTIONS ===
 function getDeviceName() {
@@ -168,8 +208,7 @@ function getRoomId(ip) {
     if (!ip || typeof ip !== 'string') return 'room_unknown';
     const parts = ip.replace('::ffff:', '').split('.');
     if (parts.length !== 4) return 'room_unknown';
-    const subnet = parts.slice(0, 3).join('.');
-    return `room_${subnet}`;
+    return `room_${parts.slice(0, 3).join('.')}`;
 }
 
 function safeHandler(socket, handler) {
@@ -184,6 +223,10 @@ function safeHandler(socket, handler) {
             log(`Error in socket handler for ${socket.id}:`, error.message);
         }
     };
+}
+
+function isSocketOnline(socketId) {
+    return socketId && io.sockets.sockets.has(socketId);
 }
 
 // === SOCKET CONNECTION HANDLING ===
@@ -205,36 +248,27 @@ io.on('connection', (socket) => {
     clients.set(socket.id, client);
     socket.join(roomId);
 
-    if (!rooms.has(roomId)) {
-        rooms.set(roomId, new Set());
-    }
+    if (!rooms.has(roomId)) rooms.set(roomId, new Set());
     rooms.get(roomId).add(socket.id);
 
     socket.on('client-init', safeHandler(socket, (data) => {
         const { clientId, deviceName } = data || {};
 
-        let finalDeviceName = sanitizeDeviceName(deviceName) || getDeviceName();
+        const finalDeviceName = sanitizeDeviceName(deviceName) || getDeviceName();
         const deviceId = uuidv4();
 
-        client = {
-            ...client,
-            deviceId,
-            deviceName: finalDeviceName,
-            clientId: clientId || null
-        };
-
+        client = { ...client, deviceId, deviceName: finalDeviceName, clientId: clientId || null };
         clients.set(socket.id, client);
+
         if (clientId) {
-            persistentClients.set(clientId, socket.id);
+            clientIdToSocket.set(clientId, socket.id);
         }
 
         log(`Client initialized: ${socket.id}, clientId: ${clientId}, name: ${finalDeviceName}`);
 
-        socket.emit('device-info', {
-            deviceId,
-            deviceName: finalDeviceName
-        });
+        socket.emit('device-info', { deviceId, deviceName: finalDeviceName });
 
+        // Send current peers list
         const roomClients = Array.from(rooms.get(roomId) || [])
             .filter(id => id !== socket.id)
             .map(id => {
@@ -250,6 +284,7 @@ io.on('connection', (socket) => {
 
         socket.emit('peers-list', roomClients);
 
+        // Notify room of new peer
         if (client.deviceId) {
             socket.to(roomId).emit('peer-joined', {
                 deviceId: client.deviceId,
@@ -258,32 +293,34 @@ io.on('connection', (socket) => {
                 clientId: client.clientId
             });
         }
+
+        // Deliver any pending (offline-queued) messages
+        if (clientId) {
+            const pending = popPendingMessages(clientId);
+            if (pending.length > 0) {
+                log(`Delivering ${pending.length} pending message(s) to ${clientId}`);
+                socket.emit('pending-messages', { messages: pending });
+            }
+        }
     }));
 
+    // === WEBRTC SIGNALING ===
     socket.on('webrtc-offer', safeHandler(socket, (data) => {
         if (!data || !data.target || !data.offer) return;
-        socket.to(data.target).emit('webrtc-offer', {
-            offer: data.offer,
-            from: socket.id
-        });
+        socket.to(data.target).emit('webrtc-offer', { offer: data.offer, from: socket.id });
     }));
 
     socket.on('webrtc-answer', safeHandler(socket, (data) => {
         if (!data || !data.target || !data.answer) return;
-        socket.to(data.target).emit('webrtc-answer', {
-            answer: data.answer,
-            from: socket.id
-        });
+        socket.to(data.target).emit('webrtc-answer', { answer: data.answer, from: socket.id });
     }));
 
     socket.on('webrtc-ice-candidate', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('webrtc-ice-candidate', {
-            candidate: data.candidate,
-            from: socket.id
-        });
+        socket.to(data.target).emit('webrtc-ice-candidate', { candidate: data.candidate, from: socket.id });
     }));
 
+    // === FILE TRANSFER SIGNALING ===
     socket.on('file-request', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
         socket.to(data.target).emit('file-request', {
@@ -296,14 +333,11 @@ io.on('connection', (socket) => {
 
     socket.on('batch-file-request', safeHandler(socket, (data) => {
         if (!data || !data.target || !Array.isArray(data.files)) return;
-
-        const sanitizedFiles = data.files.map(f => ({
-            fileName: sanitizeFileName(f.fileName),
-            fileSize: typeof f.fileSize === 'number' ? f.fileSize : 0
-        }));
-
         socket.to(data.target).emit('batch-file-request', {
-            files: sanitizedFiles,
+            files: data.files.map(f => ({
+                fileName: sanitizeFileName(f.fileName),
+                fileSize: typeof f.fileSize === 'number' ? f.fileSize : 0
+            })),
             fromName: sanitizeDeviceName(data.fromName),
             from: socket.id,
             batchId: data.batchId
@@ -321,10 +355,7 @@ io.on('connection', (socket) => {
 
     socket.on('file-response', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('file-response', {
-            accepted: Boolean(data.accepted),
-            from: socket.id
-        });
+        socket.to(data.target).emit('file-response', { accepted: Boolean(data.accepted), from: socket.id });
     }));
 
     socket.on('transfer-progress', safeHandler(socket, (data) => {
@@ -336,16 +367,39 @@ io.on('connection', (socket) => {
         });
     }));
 
-    // IMPORTANTE: data.message è un OGGETTO, non una stringa!
-    // Struttura: { id, text, timestamp, fromSocketId, fromName, isOwn }
+    // === CHAT MESSAGES ===
+    // Routed by clientId so delivery survives reconnections.
+    // If the recipient is online → deliver immediately.
+    // If offline → queue on the server, deliver on their next client-init.
     socket.on('chat-message', safeHandler(socket, (data) => {
-        if (!data || !data.target || !data.message) return;
-        socket.to(data.target).emit('chat-message', {
-            message: sanitizeChatMessage(data.message),
-            from: socket.id
-        });
+        if (!data || !data.targetClientId || !data.message) return;
+
+        const fromClient = clients.get(socket.id);
+        if (!fromClient || !fromClient.clientId) return;
+
+        const sanitized = sanitizeMessage(data.message);
+        if (!sanitized) return;
+
+        const payload = {
+            message: sanitized,
+            fromClientId: fromClient.clientId,
+            fromSocketId: socket.id
+        };
+
+        const targetSocketId = clientIdToSocket.get(data.targetClientId);
+
+        if (isSocketOnline(targetSocketId)) {
+            // Recipient is online — deliver directly
+            socket.to(targetSocketId).emit('chat-message', payload);
+            log(`Chat delivered: ${fromClient.clientId} → ${data.targetClientId}`);
+        } else {
+            // Recipient is offline — queue for later delivery
+            queueMessageForClient(data.targetClientId, payload);
+            log(`Chat queued for offline client: ${data.targetClientId} (queue size: ${messageQueues.get(data.targetClientId)?.length})`);
+        }
     }));
 
+    // === DEVICE NAME CHANGE ===
     socket.on('change-device-name', safeHandler(socket, (data) => {
         const currentClient = clients.get(socket.id);
         const newName = sanitizeDeviceName(data?.newName);
@@ -353,7 +407,6 @@ io.on('connection', (socket) => {
         if (currentClient && newName) {
             const oldName = currentClient.deviceName;
             currentClient.deviceName = newName;
-
             clients.set(socket.id, currentClient);
 
             socket.emit('device-name-updated', {
@@ -364,33 +417,34 @@ io.on('connection', (socket) => {
             socket.to(currentClient.roomId).emit('peer-name-changed', {
                 socketId: socket.id,
                 deviceName: currentClient.deviceName,
-                oldName: oldName
+                oldName
             });
 
-            log(`Device ${socket.id} changed name from "${oldName}" to "${currentClient.deviceName}"`);
+            log(`Device ${socket.id} renamed "${oldName}" → "${currentClient.deviceName}"`);
         }
     }));
 
+    // === DISCONNECT ===
     socket.on('disconnect', () => {
         log('Client disconnected:', socket.id);
 
         const disconnectedClient = clients.get(socket.id);
-        if (disconnectedClient && rooms.has(disconnectedClient.roomId)) {
-            rooms.get(disconnectedClient.roomId).delete(socket.id);
+        if (disconnectedClient) {
+            const { roomId: dRoomId, deviceId, clientId } = disconnectedClient;
 
-            if (disconnectedClient.deviceId) {
-                socket.to(disconnectedClient.roomId).emit('peer-left', {
-                    deviceId: disconnectedClient.deviceId,
-                    socketId: socket.id
-                });
+            if (rooms.has(dRoomId)) {
+                rooms.get(dRoomId).delete(socket.id);
+                if (rooms.get(dRoomId).size === 0) rooms.delete(dRoomId);
             }
 
-            if (rooms.get(disconnectedClient.roomId).size === 0) {
-                rooms.delete(disconnectedClient.roomId);
+            if (deviceId) {
+                socket.to(dRoomId).emit('peer-left', { deviceId, socketId: socket.id });
             }
 
-            if (disconnectedClient.clientId) {
-                persistentClients.delete(disconnectedClient.clientId);
+            // Only remove from clientIdToSocket if this socket is still the current one
+            // (avoids race condition if the client reconnected with a new socket)
+            if (clientId && clientIdToSocket.get(clientId) === socket.id) {
+                clientIdToSocket.delete(clientId);
             }
         }
 
@@ -403,26 +457,14 @@ io.on('connection', (socket) => {
 const PORT = process.env.SOCKET_PORT || 3002;
 server.listen(PORT, () => {
     console.log(`Socket.IO server running on port ${PORT}`);
-    if (DEBUG) {
-        console.log('Debug mode enabled - verbose logging active');
-    }
+    if (DEBUG) console.log('Debug mode enabled - verbose logging active');
 });
 
 // === GRACEFUL SHUTDOWN ===
-process.on('SIGTERM', () => {
-    log('SIGTERM received, shutting down gracefully...');
-    io.close(() => {
-        server.close(() => {
-            process.exit(0);
-        });
-    });
-});
+function shutdown() {
+    log('Shutting down gracefully...');
+    io.close(() => server.close(() => process.exit(0)));
+}
 
-process.on('SIGINT', () => {
-    log('SIGINT received, shutting down gracefully...');
-    io.close(() => {
-        server.close(() => {
-            process.exit(0);
-        });
-    });
-});
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

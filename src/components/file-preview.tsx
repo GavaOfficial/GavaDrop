@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { File, FileText, FileImage, FileVideo, FileAudio, Archive } from 'lucide-react';
+import {
+  ArchiveIcon,
+  FileIcon,
+  FileTextIcon,
+  ImageSquareIcon,
+  SpeakerHighIcon,
+  VideoIcon,
+} from '@phosphor-icons/react';
 import Image from 'next/image';
 
 interface FilePreviewProps {
@@ -26,9 +33,15 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   const isArchive = ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed'].includes(file.type);
 
   const sizeClasses = {
-    small: 'w-12 h-12',
-    medium: 'w-16 h-16', 
-    large: 'w-24 h-24'
+    small: 'h-12 w-12 rounded-xl',
+    medium: 'h-16 w-16 rounded-2xl',
+    large: 'h-24 w-24 rounded-2xl'
+  };
+
+  const iconClasses = {
+    small: 'h-5 w-5',
+    medium: 'h-7 w-7',
+    large: 'h-10 w-10'
   };
 
   useEffect(() => {
@@ -43,19 +56,26 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   }, [file, isImage]);
 
   const getFileIcon = () => {
-    if (isImage) return FileImage;
-    if (isVideo) return FileVideo;
-    if (isAudio) return FileAudio;
-    if (isPdf || isText) return FileText;
-    if (isArchive) return Archive;
-    return File;
+    if (isImage) return ImageSquareIcon;
+    if (isVideo) return VideoIcon;
+    if (isAudio) return SpeakerHighIcon;
+    if (isPdf || isText) return FileTextIcon;
+    if (isArchive) return ArchiveIcon;
+    return FileIcon;
   };
 
-  const FileIcon = getFileIcon();
+  const getThemeClasses = () => {
+    if (isAudio) return 'bg-[#dff36b]/15 text-[#dff36b]';
+    if (isArchive) return 'bg-[#f2d45d]/15 text-[#f2d45d]';
+    if (isImage || isVideo) return 'bg-[#c9a6ff]/15 text-[#c9a6ff]';
+    return 'bg-white/[0.04] text-white/55';
+  };
+
+  const PreviewIcon = getFileIcon();
 
   if (isImage && previewUrl && !error) {
     return (
-      <div className={`${sizeClasses[size]} ${className} relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800`}>
+      <div className={`${sizeClasses[size]} ${className} relative overflow-hidden border border-white/[0.06] bg-white/[0.04]`}>
         <Image
           src={previewUrl}
           alt={file.name}
@@ -69,8 +89,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   }
 
   return (
-    <div className={`${sizeClasses[size]} ${className} flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white`}>
-      <FileIcon className="w-1/2 h-1/2" />
+    <div className={`${sizeClasses[size]} ${className} flex items-center justify-center ${getThemeClasses()}`}>
+      <PreviewIcon className={iconClasses[size]} weight="duotone" />
     </div>
   );
 };

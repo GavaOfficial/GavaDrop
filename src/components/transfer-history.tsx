@@ -4,19 +4,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/contexts/language-context';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  History, 
-  FileUp, 
-  FileDown, 
-  Trash2, 
-  RefreshCw, 
-  Filter,
-  Clock,
-  Check,
-  X,
-  Lock,
-  RotateCcw
-} from 'lucide-react';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  ClockCounterClockwiseIcon,
+  ClockIcon,
+  FunnelSimpleIcon,
+  LockIcon,
+  TrashIcon,
+  XIcon,
+} from '@phosphor-icons/react';
 import { FilePreviewMetadata } from '@/components/file-preview-metadata';
 import {
   TransferHistoryItem,
@@ -49,12 +47,16 @@ import {
 
 interface TransferHistoryProps {
   isOpen: boolean;
+  sectionStyle?: React.CSSProperties;
+  isColorTransitioning?: boolean;
   onResendFile?: (fileName: string, fileSize: number, deviceName: string, fileData?: string) => void;
 }
 
-export const TransferHistory: React.FC<TransferHistoryProps> = ({ 
-  isOpen, 
-  onResendFile 
+export const TransferHistory: React.FC<TransferHistoryProps> = ({
+  isOpen,
+  sectionStyle,
+  isColorTransitioning = false,
+  onResendFile
 }) => {
   const { t, language } = useLanguage();
   const [history, setHistory] = useState<HistoryGroup[]>([]);
@@ -64,28 +66,16 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
   const loadHistory = useCallback(() => {
     const historyItems = getHistory();
     let filteredItems = historyItems;
-
-    // Applica filtri
     switch (filter) {
-      case 'sent':
-        filteredItems = historyItems.filter(item => item.direction === 'sent');
-        break;
-      case 'received':
-        filteredItems = historyItems.filter(item => item.direction === 'received');
-        break;
-      case 'encrypted':
-        filteredItems = historyItems.filter(item => item.encrypted);
-        break;
+      case 'sent':      filteredItems = historyItems.filter(i => i.direction === 'sent'); break;
+      case 'received':  filteredItems = historyItems.filter(i => i.direction === 'received'); break;
+      case 'encrypted': filteredItems = historyItems.filter(i => i.encrypted); break;
     }
-
-    const groupedHistory = groupHistoryByDate(filteredItems, language);
-    setHistory(groupedHistory);
+    setHistory(groupHistoryByDate(filteredItems, language));
   }, [filter, language]);
 
   useEffect(() => {
-    if (isOpen) {
-      loadHistory();
-    }
+    if (isOpen) loadHistory();
   }, [isOpen, loadHistory]);
 
   const handleRemoveItem = useCallback((itemId: string) => {
@@ -110,189 +100,172 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
 
   const getStatusIcon = (status: TransferHistoryItem['status']) => {
     switch (status) {
-      case 'completed':
-        return <Check className="h-3 w-3 text-green-500" />;
-      case 'failed':
-        return <X className="h-3 w-3 text-red-500" />;
-      case 'cancelled':
-        return <X className="h-3 w-3 text-orange-500" />;
-      default:
-        return <Clock className="h-3 w-3 text-gray-400" />;
+      case 'completed': return <CheckIcon className="h-3 w-3 text-[#dff36b]" weight="bold" />;
+      case 'failed':    return <XIcon className="h-3 w-3 text-red-400" weight="bold" />;
+      case 'cancelled': return <XIcon className="h-3 w-3 text-orange-400" weight="bold" />;
+      default:          return <ClockIcon className="h-3 w-3 text-white/30" />;
     }
   };
 
-  const getTotalCount = () => {
-    return history.reduce((total, group) => total + group.items.length, 0);
-  };
+  const totalCount = history.reduce((n, g) => n + g.items.length, 0);
+
+  const filterLabel = filter === 'all'
+    ? t("history.allTransfers")
+    : filter === 'sent' ? t("history.sentOnly")
+    : filter === 'received' ? t("history.receivedOnly")
+    : t("history.encryptedOnly");
 
   if (!isOpen) return null;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-border bg-muted/30">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-foreground">{t("history.title")}</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Filtri */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Filter className="h-4 w-4" />
+    <div className="flex h-full px-6 pb-8 text-white">
+      <section className="section-enter relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1.35rem]" style={sectionStyle}>
+        {isColorTransitioning && <div className="section-color-overlay" />}
+
+        {/* Header */}
+        <div className="relative z-10 shrink-0 px-6 py-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center">
+              <div className="min-w-0">
+                <h2 className="truncate text-3xl font-bold tracking-[-0.02em] text-white">
+                  {t("history.transferHistory")}
+                </h2>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-white/45">
+                  <span className="rounded-md border border-white/[0.08] bg-black/20 px-2 py-1">
+                    {totalCount === 0
+                      ? t("history.noTransfers")
+                      : `${totalCount} ${totalCount !== 1 ? t("history.transfers") : t("history.transfer")}${filter !== 'all' ? ` · ${t("history.filtered")}` : ''}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-10 rounded-xl border px-3 text-xs font-medium ${
+                      filter !== 'all'
+                        ? 'border-[#c9a6ff]/30 bg-[#c9a6ff]/10 text-[#c9a6ff] hover:bg-[#c9a6ff]/15'
+                        : 'border-white/[0.08] bg-white/[0.04] text-white/55 hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                  >
+                    <FunnelSimpleIcon className="mr-2 h-4 w-4" />
+                    {filterLabel}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl border-white/10 bg-[#171916] text-white shadow-xl">
+                  <DropdownMenuItem onClick={() => setFilter('all')} className={`hover:bg-white/10 focus:bg-white/10 ${filter === 'all' ? 'text-[#c9a6ff]' : 'text-white/70'}`}>
+                    {t("history.allTransfers")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem onClick={() => setFilter('sent')} className={`hover:bg-white/10 focus:bg-white/10 ${filter === 'sent' ? 'text-[#c9a6ff]' : 'text-white/70'}`}>
+                    <ArrowUpIcon className="mr-2 h-4 w-4" /> {t("history.sentOnly")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilter('received')} className={`hover:bg-white/10 focus:bg-white/10 ${filter === 'received' ? 'text-[#c9a6ff]' : 'text-white/70'}`}>
+                    <ArrowDownIcon className="mr-2 h-4 w-4" /> {t("history.receivedOnly")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilter('encrypted')} className={`hover:bg-white/10 focus:bg-white/10 ${filter === 'encrypted' ? 'text-[#c9a6ff]' : 'text-white/70'}`}>
+                    <LockIcon className="mr-2 h-4 w-4" /> {t("history.encryptedOnly")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {totalCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowClearDialog(true)}
+                  className="h-10 w-10 rounded-xl border border-white/[0.08] bg-white/[0.04] p-0 text-red-400/70 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <TrashIcon className="h-4 w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setFilter('all')} className={filter === 'all' ? 'bg-accent' : ''}>
-                  {t("history.allTransfers")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilter('sent')} className={filter === 'sent' ? 'bg-accent' : ''}>
-                  <FileUp className="h-4 w-4 mr-2" />
-                  {t("history.sentOnly")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter('received')} className={filter === 'received' ? 'bg-accent' : ''}>
-                  <FileDown className="h-4 w-4 mr-2" />
-                  {t("history.receivedOnly")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter('encrypted')} className={filter === 'encrypted' ? 'bg-accent' : ''}>
-                  <Lock className="h-4 w-4 mr-2" />
-                  {t("history.encryptedOnly")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Refresh */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={loadHistory}
-              className="h-8 w-8 p-0"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-
-            {/* Clear All */}
-            {getTotalCount() > 0 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowClearDialog(true)}
-                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+              )}
+            </div>
           </div>
         </div>
-        
-        <p className="text-xs text-muted-foreground">
-          {getTotalCount() === 0 
-            ? t("history.noTransfers") 
-            : `${getTotalCount()} ${getTotalCount() !== 1 ? t("history.transfers") : t("history.transfer")} ${filter !== 'all' ? `(${t("history.filtered")})` : ''}`
-          }
-        </p>
-      </div>
 
-      {/* Content */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="p-4">
-          {getTotalCount() === 0 ? (
-            <div className="text-center py-12">
-              <History className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-muted-foreground text-sm mb-2">
-                {filter === 'all' 
-                  ? t("history.noTransfersCompleted")
-                  : `${t("history.noTransfersFiltered")} ${
-                      filter === 'sent' ? t("history.sentOnly").toLowerCase() : 
-                      filter === 'received' ? t("history.receivedOnly").toLowerCase() : 
-                      t("history.encryptedOnly").toLowerCase()
-                    }`
-                }
-              </p>
-              <p className="text-xs text-muted-foreground/70">
-                {t("history.completedWillAppear")}
-              </p>
-            </div>
+        {/* Content */}
+        <ScrollArea className="relative z-10 min-h-0 flex-1 p-5">
+          {totalCount === 0 ? (
+            null
           ) : (
             <div className="space-y-6">
               {history.map((group) => (
                 <div key={group.date}>
-                  {/* Data gruppo */}
-                  <div className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">
-                    {group.displayDate}
+                  {/* Date separator */}
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/[0.06]" />
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                      {group.displayDate}
+                    </span>
+                    <div className="h-px flex-1 bg-white/[0.06]" />
                   </div>
-                  
-                  {/* Items del gruppo */}
+
                   <div className="space-y-2">
                     {group.items.map((item) => (
                       <div
                         key={item.id}
-                        className="group flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                        className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-[#141612] px-4 py-3.5 transition-colors hover:border-white/[0.1] hover:bg-[#1a1c18]"
                       >
-                        {/* Preview/Icon */}
-                        <div className="relative">
-                          <FilePreviewMetadata
-                            fileName={item.fileName}
-                            fileType={item.fileType}
-                            size="small"
-                          />
-                          
-                          {/* Direction indicator */}
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-background rounded-full border flex items-center justify-center">
-                            {item.direction === 'sent' ? (
-                              <FileUp className="h-2 w-2 text-blue-500" />
-                            ) : (
-                              <FileDown className="h-2 w-2 text-green-500" />
-                            )}
+                        {/* File icon with direction badge */}
+                        <div className="relative shrink-0">
+                          <FilePreviewMetadata fileName={item.fileName} fileType={item.fileType} size="small" />
+                          <div className={`absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-[#080907] ${
+                            item.direction === 'sent' ? 'bg-[#c9a6ff]/20' : 'bg-[#dff36b]/15'
+                          }`}>
+                            {item.direction === 'sent'
+                              ? <ArrowUpIcon className="h-2.5 w-2.5 text-[#c9a6ff]" weight="bold" />
+                              : <ArrowDownIcon className="h-2.5 w-2.5 text-[#dff36b]" weight="bold" />}
                           </div>
                         </div>
 
                         {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-sm text-foreground truncate">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-0.5 flex items-center gap-2">
+                            <p className="truncate text-sm font-medium text-white">
                               {item.relativePath || item.fileName}
                             </p>
-                            {item.encrypted && (
-                              <Lock className="h-3 w-3 text-amber-500" />
-                            )}
+                            {item.encrypted && <LockIcon className="h-3 w-3 shrink-0 text-[#dff36b]" />}
                             {getStatusIcon(item.status)}
                           </div>
-                          
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{item.direction === 'sent' ? '→' : '←'} {item.deviceName}</span>
-                            <span>•</span>
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-white/35">
+                            <span className={item.direction === 'sent' ? 'text-[#c9a6ff]/80' : 'text-[#dff36b]/80'}>
+                              {item.direction === 'sent'
+                                ? (language === 'it' ? 'Inviato a' : 'Sent to')
+                                : (language === 'it' ? 'Ricevuto da' : 'Received from')}
+                            </span>
+                            <span className="font-medium text-white/55">{item.deviceName}</span>
+                            <span>·</span>
                             <span>{formatFileSize(item.fileSize)}</span>
-                            <span>•</span>
+                            <span>·</span>
                             <span>{formatTime(item.timestamp)}</span>
                           </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           {item.direction === 'sent' && item.status === 'completed' && onResendFile && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleResend(item)}
-                              className="h-7 w-7 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/20"
+                              className="h-8 w-8 rounded-lg p-0 text-[#c9a6ff]/60 hover:bg-[#c9a6ff]/10 hover:text-[#c9a6ff]"
                               title={item.fileData ? t("transfer.resendAuto") : t("transfer.resendManual")}
                             >
-                              <RotateCcw className={`h-3 w-3 ${item.fileData ? 'text-green-500' : 'text-blue-500'}`} />
+                              <ClockCounterClockwiseIcon className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveItem(item.id)}
-                            className="h-7 w-7 p-0 hover:bg-red-100 dark:hover:bg-red-900/20"
+                            className="h-8 w-8 rounded-lg p-0 text-white/25 hover:bg-red-500/10 hover:text-red-400"
                             title={t("history.removeFromHistory")}
                           >
-                            <Trash2 className="h-3 w-3 text-red-500" />
+                            <TrashIcon className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -302,24 +275,28 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
               ))}
             </div>
           )}
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      </section>
 
       {/* Clear All Dialog */}
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("history.clearAll")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("dialog.confirmClearHistory")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+          <div className="border-b border-white/[0.06] px-6 py-5">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-red-500/15 text-red-400">
+                  <TrashIcon className="h-5 w-5" />
+                </span>
+                {t("history.clearAll")}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2">
+                {t("dialog.confirmClearHistory")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleClearAll}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogAction onClick={handleClearAll} className="bg-red-500 text-white hover:bg-red-600">
               {t("history.clearAll")}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -48,6 +48,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
   const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map());
   const messageIdCounter = useRef(0);
   const [disconnectedPeers, setDisconnectedPeers] = useState<Map<string, { peer: Peer, disconnectedAt: number }>>(new Map());
+  const [knownPeers, setKnownPeers] = useState<Map<string, Peer>>(new Map());
   const disconnectionTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Generate unique message ID
@@ -112,6 +113,18 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
           localStorage.removeItem(`gavadrop-unread-${clientId}`);
         }
       }
+
+      // Load known peers
+      const savedKnownPeers = localStorage.getItem(`gavadrop-known-peers-${clientId}`);
+      if (savedKnownPeers) {
+        try {
+          const parsed = JSON.parse(savedKnownPeers);
+          const peerMap = new Map<string, Peer>(Object.entries(parsed) as [string, Peer][]);
+          setKnownPeers(peerMap);
+        } catch (error) {
+          localStorage.removeItem(`gavadrop-known-peers-${clientId}`);
+        }
+      }
     }
   }, []);
 
@@ -126,6 +139,16 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       localStorage.setItem(`gavadrop-messages-${clientId}`, JSON.stringify(messagesToSave));
     }
   }, [messages]);
+
+  // Save knownPeers to localStorage whenever they change
+  useEffect(() => {
+    const clientId = localStorage.getItem('gavadrop-client-id');
+    if (clientId && knownPeers.size > 0) {
+      const obj: Record<string, Peer> = {};
+      knownPeers.forEach((peer, id) => { obj[id] = peer; });
+      localStorage.setItem(`gavadrop-known-peers-${clientId}`, JSON.stringify(obj));
+    }
+  }, [knownPeers]);
 
   // Save unread counts to localStorage whenever they change
   useEffect(() => {
@@ -215,37 +238,37 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       return newMap;
     });
 
-    // Send via WebRTC data channel if available, otherwise via socket
+    // Send via WebRTC data channel if available (peer-to-peer, fastest path)
     const connection = connections.current.get(targetSocketId);
     if (connection?.dataChannel && connection.dataChannel.readyState === 'open') {
       connection.dataChannel.send(JSON.stringify({
         type: 'chat-message',
         message: {
           ...message,
-          isOwn: false // For the receiver
+          isOwn: false,
+          fromClientId: clientId // include so receiver can store without peer lookup
         }
       }));
     } else {
-      // Fallback to socket
+      // Fallback: route via server by clientId — works even if socketId changes
       socket.emit('chat-message', {
-        target: targetSocketId,
-        message: {
-          ...message,
-          isOwn: false
-        }
+        targetClientId: targetPeer.clientId,
+        message: { ...message, isOwn: false }
       });
     }
   }, [socket, deviceInfo, peers, generateMessageId]);
 
-  const markMessagesAsRead = useCallback((socketId: string) => {
-    const peer = peers.find(p => p.socketId === socketId);
-    if (peer) {
-      setUnreadCounts(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(peer.clientId);
-        return newMap;
-      });
-    }
+  const markMessagesAsRead = useCallback((peerId: string) => {
+    const peer = peers.find(p => p.socketId === peerId || p.clientId === peerId);
+    const clientIdToClear = peer?.clientId || peerId;
+
+    setUnreadCounts(prev => {
+      if (!prev.has(clientIdToClear)) return prev;
+
+      const newMap = new Map(prev);
+      newMap.delete(clientIdToClear);
+      return newMap;
+    });
   }, [peers]);
 
   const sendFile = useCallback(async (file: File, targetSocketId: string) => {
@@ -399,30 +422,39 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     let offset = 0;
     const startTime = Date.now();
 
+    const BUFFER_HIGH = 4 * 1024 * 1024; // pause sending above 4 MB buffered
+
     const sendChunk = async () => {
-      // Get optimal chunk size from optimizer
+      if (dataChannel.readyState !== 'open') return;
+
+      // Back-pressure: wait until the send buffer drains below threshold
+      if (dataChannel.bufferedAmount > BUFFER_HIGH) {
+        setTimeout(sendChunk, 50);
+        return;
+      }
+
       const chunkSize = optimizer.calculateOptimalChunkSize();
       const chunk = fileToSend.slice(offset, offset + chunkSize);
       const arrayBuffer = await chunk.arrayBuffer();
-      
+
       if (dataChannel.readyState === 'open') {
         dataChannel.send(arrayBuffer);
-        
+
         // Update optimizer metrics
         optimizer.updateMetrics(arrayBuffer.byteLength);
-        
+
         offset += chunkSize;
         const progress = Math.min((offset / fileToSend.size) * 100, 100);
         const currentSpeed = optimizer.getCurrentSpeed();
         const eta = optimizer.getEstimatedTimeRemaining(fileToSend.size - offset);
-        
-        setTransferProgress(prev => prev ? { 
-          ...prev, 
+
+        setTransferProgress(prev => prev ? {
+          ...prev,
           progress,
           speed: currentSpeed,
           eta: eta
         } : null);
-        
+
         // Send enhanced progress update to receiver
         socket.emit('transfer-progress', {
           target: targetSocketId,
@@ -434,24 +466,19 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         });
 
         if (offset < fileToSend.size) {
-          // Dynamic delay based on network performance
-          const delay = currentSpeed > 1000000 ? 5 : currentSpeed > 500000 ? 10 : 15;
-          setTimeout(sendChunk, delay);
+          setTimeout(sendChunk, 0);
         } else {
           dataChannel.send(JSON.stringify({ type: 'file-complete' }));
-          
-          // Show completion stats
+
           const metrics = optimizer.getMetrics();
           console.log('Transfer completed:', {
             totalTime: Date.now() - startTime,
             averageSpeed: metrics.averageSpeed,
             efficiency: metrics.efficiency
           });
-          
-          // Play transfer complete sound
+
           playNotificationSound('success');
-          
-          // Keep progress at 100% for a moment to show completion, then clear
+
           setTimeout(() => {
             setTransferProgress(null);
           }, 2500);
@@ -595,31 +622,39 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       let offset = 0;
       const startTime = Date.now();
 
+      const BUFFER_HIGH_DIRECT = 4 * 1024 * 1024;
+
       const sendChunk = async () => {
-        // Get optimal chunk size from optimizer
+        if (dataChannel.readyState !== 'open') return;
+
+        // Back-pressure: wait until the send buffer drains below threshold
+        if (dataChannel.bufferedAmount > BUFFER_HIGH_DIRECT) {
+          setTimeout(sendChunk, 50);
+          return;
+        }
+
         const chunkSize = optimizer.calculateOptimalChunkSize();
         const chunk = fileToSend.slice(offset, offset + chunkSize);
         const arrayBuffer = await chunk.arrayBuffer();
-        
+
         if (dataChannel.readyState === 'open') {
           dataChannel.send(arrayBuffer);
-          
+
           // Update optimizer metrics
           optimizer.updateMetrics(arrayBuffer.byteLength);
-          
+
           offset += chunkSize;
           const progress = Math.min((offset / fileToSend.size) * 100, 100);
           const currentSpeed = optimizer.getCurrentSpeed();
           const eta = optimizer.getEstimatedTimeRemaining(fileToSend.size - offset);
-          
-          setTransferProgress(prev => prev ? { 
-            ...prev, 
+
+          setTransferProgress(prev => prev ? {
+            ...prev,
             progress,
             speed: currentSpeed,
             eta: eta
           } : null);
-          
-          // Send enhanced progress update to receiver
+
           if (socket) {
             socket.emit('transfer-progress', {
               target: targetSocketId,
@@ -632,24 +667,19 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
           }
 
           if (offset < fileToSend.size) {
-            // Dynamic delay based on network performance
-            const delay = currentSpeed > 1000000 ? 5 : currentSpeed > 500000 ? 10 : 15;
-            setTimeout(sendChunk, delay);
+            setTimeout(sendChunk, 0);
           } else {
             dataChannel.send(JSON.stringify({ type: 'file-complete' }));
-            
-            // Show completion stats
+
             const metrics = optimizer.getMetrics();
             console.log('Direct transfer completed:', {
               totalTime: Date.now() - startTime,
               averageSpeed: metrics.averageSpeed,
               efficiency: metrics.efficiency
             });
-            
-            // Play transfer complete sound
+
             playNotificationSound('success');
-            
-            // Keep progress at 100% for a moment to show completion, then clear
+
             setTimeout(() => {
               setTransferProgress(null);
             }, 2500);
@@ -814,43 +844,43 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
             if (message.type === 'chat-message') {
               console.log('Received chat message via WebRTC:', message);
               const chatMessage = message.message;
-              
-              // Use a callback to get fresh peers state
+              // Prefer explicit fromClientId included in message; fallback to peer lookup
+              const explicitClientId = chatMessage.fromClientId;
+
+              const storeMessage = (senderClientId: string) => {
+                setMessages(prev => {
+                  const newMap = new Map(prev);
+                  const existing = newMap.get(senderClientId) || [];
+                  const withId = {
+                    ...chatMessage,
+                    id: `msg_${chatMessage.timestamp}_webrtc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+                  };
+                  newMap.set(senderClientId, [...existing, withId]);
+                  return newMap;
+                });
+                setUnreadCounts(prev => {
+                  const newMap = new Map(prev);
+                  newMap.set(senderClientId, (prev.get(senderClientId) || 0) + 1);
+                  return newMap;
+                });
+                playNotificationSound('message');
+              };
+
+              if (explicitClientId) {
+                storeMessage(explicitClientId);
+              } else {
+              // Fallback: look up by socketId
               setPeers(currentPeers => {
                 const fromPeer = currentPeers.find(p => p.socketId === data.from);
-                console.log('fromPeer found for WebRTC message:', fromPeer, 'socketId:', data.from, 'currentPeers:', currentPeers);
-                
+
                 if (fromPeer && fromPeer.clientId) {
-                  console.log('Adding message to clientId:', fromPeer.clientId);
-                  setMessages(prev => {
-                    const newMap = new Map(prev);
-                    const chatMessages = newMap.get(fromPeer.clientId) || [];
-                    // Ensure received message has unique ID
-                    const messageWithUniqueId = {
-                      ...chatMessage,
-                      id: `msg_${chatMessage.timestamp}_webrtc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
-                    };
-                    newMap.set(fromPeer.clientId, [...chatMessages, messageWithUniqueId]);
-                    console.log('Updated messages via WebRTC:', newMap);
-                    return newMap;
-                  });
-                  
-                  // Update unread count using clientId
-                  setUnreadCounts(prev => {
-                    const newMap = new Map(prev);
-                    const currentCount = newMap.get(fromPeer.clientId) || 0;
-                    newMap.set(fromPeer.clientId, currentCount + 1);
-                    return newMap;
-                  });
-                  
-                  // Play message notification sound
-                  playNotificationSound('message');
+                  storeMessage(fromPeer.clientId);
                 } else {
                   console.error('Could not find fromPeer with clientId for WebRTC message:', data.from, currentPeers);
                 }
-                
-                return currentPeers; // Return unchanged peers
+                return currentPeers;
               });
+              } // end else (no explicitClientId)
             } else if (message.type === 'file-info') {
               fileName = message.fileName;
               relativePath = message.relativePath || message.fileName;
@@ -966,6 +996,11 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     socketInstance.on('peers-list', (peersList: Peer[]) => {
       console.log('Received peers-list:', peersList);
       setPeers(peersList);
+      setKnownPeers(prev => {
+        const next = new Map(prev);
+        peersList.forEach(p => next.set(p.clientId, p));
+        return next;
+      });
     });
 
     socketInstance.on('peer-joined', (peer: Peer) => {
@@ -1003,6 +1038,11 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         const newPeers = [...prev, peer];
         console.log('Added new peer:', newPeers);
         return newPeers;
+      });
+      setKnownPeers(prev => {
+        const next = new Map(prev);
+        next.set(peer.clientId, peer);
+        return next;
       });
     });
 
@@ -1198,45 +1238,47 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
   useEffect(() => {
     if (!socket) return;
 
-    const handleChatMessage = (data: { message: Message, from: string }) => {
-      console.log('Received chat message via Socket:', data, 'current peers:', peers);
-      const fromPeer = peers.find(p => p.socketId === data.from);
-      console.log('fromPeer found for Socket message:', fromPeer, 'socketId:', data.from);
-      
-      if (fromPeer && fromPeer.clientId) {
-        console.log('Adding socket message to clientId:', fromPeer.clientId);
-        setMessages(prev => {
-          const newMap = new Map(prev);
-          const chatMessages = newMap.get(fromPeer.clientId) || [];
-          // Ensure received message has unique ID
-          const messageWithUniqueId = {
-            ...data.message,
-            id: `msg_${data.message.timestamp}_recv_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
-          };
-          newMap.set(fromPeer.clientId, [...chatMessages, messageWithUniqueId]);
-          console.log('Updated messages via Socket:', newMap);
-          return newMap;
-        });
-        
-        // Update unread count using clientId
-        setUnreadCounts(prev => {
-          const newMap = new Map(prev);
-          const currentCount = newMap.get(fromPeer.clientId) || 0;
-          newMap.set(fromPeer.clientId, currentCount + 1);
-          return newMap;
-        });
-        
-        // Play message notification sound
-        playNotificationSound('message');
-      } else {
-        console.error('Could not find fromPeer with clientId for Socket message:', data.from, peers);
-      }
+    const storeIncomingMessage = (fromClientId: string, message: Message) => {
+      setMessages(prev => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(fromClientId) || [];
+        const withId = {
+          ...message,
+          id: `msg_${message.timestamp}_recv_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+        };
+        newMap.set(fromClientId, [...existing, withId]);
+        return newMap;
+      });
+      setUnreadCounts(prev => {
+        const newMap = new Map(prev);
+        newMap.set(fromClientId, (prev.get(fromClientId) || 0) + 1);
+        return newMap;
+      });
+      playNotificationSound('message');
+    };
+
+    // Server now sends fromClientId directly — no peer lookup needed
+    const handleChatMessage = (data: { message: Message, fromClientId: string, fromSocketId: string }) => {
+      if (!data.fromClientId) return;
+      console.log('Received chat message via Socket:', data);
+      storeIncomingMessage(data.fromClientId, data.message);
+    };
+
+    // Pending messages queued while we were offline
+    const handlePendingMessages = (data: { messages: Array<{ message: Message, fromClientId: string }> }) => {
+      if (!Array.isArray(data.messages) || data.messages.length === 0) return;
+      console.log(`Received ${data.messages.length} pending message(s)`);
+      data.messages.forEach(({ message, fromClientId }) => {
+        if (fromClientId) storeIncomingMessage(fromClientId, message);
+      });
     };
 
     socket.on('chat-message', handleChatMessage);
+    socket.on('pending-messages', handlePendingMessages);
 
     return () => {
       socket.off('chat-message', handleChatMessage);
+      socket.off('pending-messages', handlePendingMessages);
     };
   }, [socket, peers]);
 
@@ -1326,6 +1368,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     markMessagesAsRead,
     clearAllChatData,
     disconnectedPeers,
+    knownPeers,
     incomingFile,
     incomingFileRequest,
     incomingBatchRequest,

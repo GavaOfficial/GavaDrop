@@ -1,53 +1,43 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as ProgressPrimitive from "@radix-ui/react-progress"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-interface ProgressProps extends React.ComponentProps<typeof ProgressPrimitive.Root> {
+interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
+  value?: number | null;
   variant?: "default" | "modern" | "glow";
 }
 
-function Progress({
-  className,
-  value,
-  variant = "default",
-  ...props
-}: ProgressProps) {
-  const baseStyles = {
-    default: "bg-primary/20 h-2",
-    modern: "bg-muted/50 h-3",
-    glow: "bg-muted/30 h-4"
-  };
-
-  const indicatorStyles = {
-    default: "bg-primary",
-    modern: "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)]",
-    glow: "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)] shadow-[0_0_20px_var(--glow-color)]"
-  };
+function Progress({ className, value = 0, variant = "default", ...props }: ProgressProps) {
+  const safeValue = Math.max(0, Math.min(100, value ?? 0));
+  const barClass =
+    variant === "default"
+      ? "bg-primary"
+      : "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)]";
 
   return (
-    <ProgressPrimitive.Root
+    <div
       data-slot="progress"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={safeValue}
       className={cn(
-        "relative w-full overflow-hidden rounded-full",
-        baseStyles[variant],
+        "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+        variant === "modern" && "h-3 bg-muted/50",
+        variant === "glow" && "h-4 bg-muted/30",
         className
       )}
       {...props}
     >
-      <ProgressPrimitive.Indicator
+      <div
         data-slot="progress-indicator"
-        className={cn(
-          "h-full w-full flex-1 transition-all duration-300 ease-out rounded-full",
-          indicatorStyles[variant],
-          variant !== "default" && "relative after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/30 after:to-transparent after:rounded-full"
-        )}
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        className={cn("h-full rounded-full transition-[width] duration-300 ease-out", barClass)}
+        style={{ width: `${safeValue}%` }}
       />
-    </ProgressPrimitive.Root>
-  )
+    </div>
+  );
 }
 
-export { Progress }
+export { Progress };
