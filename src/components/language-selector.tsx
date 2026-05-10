@@ -18,8 +18,8 @@ export function LanguageSelector() {
   const popupRef = React.useRef<HTMLDivElement>(null)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const options = [
-    { id: "it" as const, label: t("lang.italian"), nativeLabel: "Italiano", code: "IT" },
-    { id: "en" as const, label: t("lang.english"), nativeLabel: "English", code: "EN" },
+    { id: "it" as const, label: t("lang.italian"), code: "IT" },
+    { id: "en" as const, label: t("lang.english"), code: "EN" },
   ]
 
   const syncPosition = React.useCallback(() => {
@@ -137,9 +137,6 @@ export function LanguageSelector() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-white">
                       {option.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs font-medium text-white/35">
-                      {isActive ? t("lang.current") : option.nativeLabel}
                     </span>
                   </span>
                   <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full transition-opacity ${

@@ -83,6 +83,7 @@ export default function Home() {
   const dropContentRef = useRef<HTMLDivElement>(null);
   const deselectAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transferQueueCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nativeDevicePanelCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSelectingFolderRef = useRef<boolean>(false);
   const [isStateLoaded, setIsStateLoaded] = useState(false);
   const [activeView, setActiveView] = useState<'home' | 'history' | 'chat'>('home');
@@ -104,6 +105,8 @@ export default function Home() {
   const [isRecentCursorVisible, setIsRecentCursorVisible] = useState(true);
   const [shouldRenderTransferQueue, setShouldRenderTransferQueue] = useState(false);
   const [isTransferQueueOpen, setIsTransferQueueOpen] = useState(false);
+  const [shouldRenderNativeDevicePanel, setShouldRenderNativeDevicePanel] = useState(false);
+  const [isNativeDevicePanelOpen, setIsNativeDevicePanelOpen] = useState(false);
   
   const { t } = useLanguage();
   const { isMobile, isPWA, isStandalone } = usePWAMode();
@@ -1023,6 +1026,38 @@ export default function Home() {
   const selectedPreviewFile = selectedFileIndex !== null ? selectedFiles[selectedFileIndex] : null;
 
   useEffect(() => {
+    if (nativeDevicePanelCloseTimeoutRef.current) {
+      clearTimeout(nativeDevicePanelCloseTimeoutRef.current);
+      nativeDevicePanelCloseTimeoutRef.current = null;
+    }
+
+    if (!shouldShowNativeDevicePanel) {
+      setIsNativeDevicePanelOpen(false);
+      nativeDevicePanelCloseTimeoutRef.current = setTimeout(() => {
+        setShouldRenderNativeDevicePanel(false);
+      }, 520);
+      return;
+    }
+
+    setShouldRenderNativeDevicePanel(true);
+    setIsNativeDevicePanelOpen(false);
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        setIsNativeDevicePanelOpen(true);
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [shouldShowNativeDevicePanel]);
+
+  useEffect(() => {
     if (transferQueueCloseTimeoutRef.current) {
       clearTimeout(transferQueueCloseTimeoutRef.current);
       transferQueueCloseTimeoutRef.current = null;
@@ -1745,26 +1780,28 @@ export default function Home() {
 
       {/* Right device panel */}
       <div
-        className={`order-3 hidden h-full shrink-0 overflow-hidden bg-[#030303] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:block ${
-          shouldShowNativeDevicePanel ? 'w-[300px]' : 'w-0'
+        className={`relative order-3 hidden h-full shrink-0 overflow-visible bg-[#030303] transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:block ${
+          isNativeDevicePanelOpen ? 'w-[300px]' : 'w-0'
         }`}
-        aria-hidden={!shouldShowNativeDevicePanel}
+        aria-hidden={!isNativeDevicePanelOpen}
       >
-      <aside className={`flex h-full w-[300px] flex-col px-5 pb-7 pt-[128px] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        shouldShowNativeDevicePanel
-          ? 'translate-x-0 opacity-100'
-          : 'pointer-events-none translate-x-full opacity-0'
-      }`}>
-        {/* Devices List */}
-        {renderRecentPeoplePanel(
-          nativePanelOnlinePeers,
-          nativePanelOfflinePeers,
-          historicalOfflinePeers,
-          activeView === 'chat' ? t("device.onlineDevices") : t("device.recentOnlineDevices"),
-          activeView !== 'chat' || recentTypingText.length > 0
+        {shouldRenderNativeDevicePanel && (
+          <aside className={`absolute inset-y-0 right-0 flex h-full w-[300px] flex-col px-5 pb-7 pt-[128px] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isNativeDevicePanelOpen
+              ? 'translate-x-0 opacity-100'
+              : 'pointer-events-none translate-x-full opacity-0'
+          }`}>
+            {/* Devices List */}
+            {renderRecentPeoplePanel(
+              nativePanelOnlinePeers,
+              nativePanelOfflinePeers,
+              historicalOfflinePeers,
+              activeView === 'chat' ? t("device.onlineDevices") : t("device.recentOnlineDevices"),
+              activeView !== 'chat' || recentTypingText.length > 0
+            )}
+            
+          </aside>
         )}
-        
-      </aside>
       </div>
 
       {/* Main Content Area */}
@@ -1977,7 +2014,7 @@ export default function Home() {
         <div className="flex-1 flex overflow-hidden">
           {/* Main Content */}
           <div className={`flex-1 px-6 pb-8 flex min-h-0 flex-col overflow-hidden transition-[gap] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isTransferQueueOpen ? 'gap-6' : 'gap-0'
+            isTransferQueueOpen || transferProgress ? 'gap-3' : 'gap-0'
           }`}>
           {/* File Drop Area */}
           <div

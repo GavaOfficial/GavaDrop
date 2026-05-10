@@ -609,3 +609,217 @@
   border-radius: 50%;
   background: oklch(0.5 0 0);
 }
+
+/* Light app shell overrides.
+   The desktop shell uses many fixed dark Tailwind colors in JSX. Keep this CSS-only
+   so the light theme can be introduced without touching component structure. */
+html.light,
+html.light body {
+  background: #f3efe6 !important;
+  color: #1f211d !important;
+}
+
+html.light .dark {
+  --background: oklch(0.965 0.012 84);
+  --foreground: oklch(0.22 0.012 84);
+  --card: oklch(0.985 0.008 84);
+  --card-foreground: oklch(0.22 0.012 84);
+  --popover: oklch(0.985 0.008 84);
+  --popover-foreground: oklch(0.22 0.012 84);
+  --primary: oklch(0.47 0.055 162);
+  --primary-foreground: oklch(0.98 0.006 84);
+  --secondary: oklch(0.91 0.012 84);
+  --secondary-foreground: oklch(0.26 0.014 84);
+  --muted: oklch(0.9 0.01 84);
+  --muted-foreground: oklch(0.47 0.014 84);
+  --accent: oklch(0.87 0.022 158);
+  --accent-foreground: oklch(0.24 0.02 158);
+  --border: oklch(0.79 0.014 84);
+  --input: oklch(0.83 0.014 84);
+  --ring: oklch(0.54 0.06 162);
+  --sidebar: oklch(0.89 0.011 84);
+  --sidebar-foreground: oklch(0.22 0.012 84);
+  --sidebar-accent: oklch(0.83 0.014 84);
+  --sidebar-accent-foreground: oklch(0.24 0.02 158);
+  --glass-bg: oklch(0.98 0.008 84 / 0.88);
+  --glass-border: oklch(0.78 0.014 84 / 0.8);
+  background: #f3efe6 !important;
+  color: #1f211d !important;
+}
+
+html.light .dark .bg-\[\#030303\],
+html.light .dark .bg-\[\#050505\],
+html.light .dark .bg-black,
+html.light .dark .bg-black\/20,
+html.light .dark .bg-black\/15 {
+  background-color: #f3efe6 !important;
+}
+
+html.light .dark .bg-\[\#080907\],
+html.light .dark .bg-\[\#11120f\] {
+  background-color: #f8f5ec !important;
+}
+
+html.light .dark .bg-\[\#141612\] {
+  background-color: #fffaf0 !important;
+}
+
+html.light .dark .bg-\[\#171916\],
+html.light .dark .bg-\[\#1f211d\],
+html.light .dark .bg-\[\#23231f\],
+html.light .dark .bg-white\/\[0\.025\],
+html.light .dark .bg-white\/\[0\.035\],
+html.light .dark .bg-white\/\[0\.04\],
+html.light .dark .bg-white\/\[0\.045\],
+html.light .dark .bg-white\/\[0\.05\],
+html.light .dark .bg-white\/\[0\.055\],
+html.light .dark .bg-white\/\[0\.08\],
+html.light .dark .bg-white\/\[0\.10\],
+html.light .dark .bg-white\/10 {
+  background-color: #ebe5d8 !important;
+}
+
+html.light .dark .hover\:bg-white\/10:hover,
+html.light .dark .hover\:bg-white\/15:hover,
+html.light .dark .hover\:bg-white\/\[0\.05\]:hover,
+html.light .dark .hover\:bg-white\/\[0\.055\]:hover,
+html.light .dark .hover\:bg-white\/\[0\.08\]:hover,
+html.light .dark .hover\:bg-\[\#1f211d\]:hover,
+html.light .dark .hover\:bg-\[\#1a1c18\]:hover {
+  background-color: #ded6c7 !important;
+}
+
+html.light .dark .border-\[\#080907\] {
+  border-color: #f8f5ec !important;
+}
+
+html.light .dark .section-enter {
+  background-color: #f8f5ec !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.74), 0 16px 46px rgb(78 68 47 / 0.08) !important;
+}
+
+html.light .dark .section-color-overlay {
+  background: #f3efe6 !important;
+}
+
+html.light .dark .text-white,
+html.light .dark .text-white\/80,
+html.light .dark .text-white\/70,
+html.light .dark .text-white\/65 {
+  color: #1f211d !important;
+}
+
+html.light .dark .text-white\/55,
+html.light .dark .text-white\/50,
+html.light .dark .text-white\/45 {
+  color: rgb(31 33 29 / 0.62) !important;
+}
+
+html.light .dark .text-white\/40,
+html.light .dark .text-white\/35,
+html.light .dark .text-white\/30,
+html.light .dark .text-white\/25,
+html.light .dark .text-white\/20 {
+  color: rgb(31 33 29 / 0.45) !important;
+}
+
+html.light .dark .border-white\/10,
+html.light .dark .border-white\/\[0\.06\],
+html.light .dark .border-white\/\[0\.07\],
+html.light .dark .border-white\/\[0\.08\],
+html.light .dark .border-white\/\[0\.12\] {
+  border-color: rgb(92 82 59 / 0.18) !important;
+}
+
+html.light .dark .placeholder\:text-white\/35::placeholder,
+html.light .dark input::placeholder,
+html.light .dark textarea::placeholder {
+  color: rgb(31 33 29 / 0.42) !important;
+}
+
+html.light .dark .bg-\[\#e6d5ff\] {
+  background-color: #314d40 !important;
+  color: #fbf7ed !important;
+}
+
+html.light .dark .text-\[\#c9a6ff\],
+html.light .dark .text-\[\#c9a6ff\]\/80,
+html.light .dark .text-\[\#c69cff\],
+html.light .dark .text-\[\#e2ccff\] {
+  color: #315f4c !important;
+}
+
+html.light .dark .border-\[\#c9a6ff\],
+html.light .dark .border-\[\#c9a6ff\]\/45 {
+  border-color: #4b8068 !important;
+}
+
+html.light .dark .bg-\[\#c9a6ff\] {
+  background-color: #bfd4c7 !important;
+}
+
+html.light .dark .bg-\[\#211733\] {
+  background-color: #dce9df !important;
+}
+
+html.light .dark .bg-\[\#f3ead2\] {
+  background-color: #efe4c7 !important;
+}
+
+html.light .dark .bg-\[\#f2d45d\] {
+  background-color: #d9bd47 !important;
+}
+
+html.light .dark .shadow-\[inset_0_1px_0_rgba\(255\,255\,255\,0\.06\)\],
+html.light .dark .shadow-\[inset_0_1px_0_rgba\(255\,255\,255\,0\.05\)\],
+html.light .dark .shadow-\[inset_0_1px_0_rgba\(255\,255\,255\,0\.04\)\] {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.76) !important;
+}
+
+html.light .dark .custom-scrollbar {
+  scrollbar-color: rgb(91 82 59 / 0.34) transparent;
+}
+
+html.light [role="alertdialog"] {
+  background-color: #f8f5ec !important;
+  border-color: rgb(92 82 59 / 0.18) !important;
+  color: #1f211d !important;
+  box-shadow: 0 24px 80px rgb(78 68 47 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.8) !important;
+}
+
+html.light [role="alertdialog"] .bg-\[\#080907\],
+html.light [role="alertdialog"] .bg-\[\#11120f\],
+html.light [role="alertdialog"] .bg-white\/\[0\.02\],
+html.light [role="alertdialog"] .bg-white\/\[0\.035\],
+html.light [role="alertdialog"] .bg-white\/\[0\.04\] {
+  background-color: #fffaf0 !important;
+}
+
+html.light [role="alertdialog"] .text-white,
+html.light [role="alertdialog"] .text-white\/80,
+html.light [role="alertdialog"] .text-white\/70 {
+  color: #1f211d !important;
+}
+
+html.light [role="alertdialog"] .text-white\/55,
+html.light [role="alertdialog"] .text-white\/50,
+html.light [role="alertdialog"] .text-white\/45,
+html.light [role="alertdialog"] .text-white\/40,
+html.light [role="alertdialog"] .text-white\/35 {
+  color: rgb(31 33 29 / 0.58) !important;
+}
+
+html.light [role="alertdialog"] .border-white\/\[0\.06\],
+html.light [role="alertdialog"] .border-white\/\[0\.08\],
+html.light [role="alertdialog"] .border-white\/10 {
+  border-color: rgb(92 82 59 / 0.18) !important;
+}
+
+html.light [role="alertdialog"] .bg-\[\#e6d5ff\] {
+  background-color: #314d40 !important;
+  color: #fbf7ed !important;
+}
+
+html.light [role="alertdialog"] .hover\:bg-\[\#d9bcff\]:hover {
+  background-color: #263d33 !important;
+}
