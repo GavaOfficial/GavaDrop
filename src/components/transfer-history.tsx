@@ -118,16 +118,16 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="flex h-full px-6 pb-8 text-white">
+    <div className="flex h-full px-3 pb-4 text-white sm:px-6 sm:pb-8">
       <section className="section-enter relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1.35rem]" style={sectionStyle}>
         {isColorTransitioning && <div className="section-color-overlay" />}
 
         {/* Header */}
-        <div className="relative z-10 shrink-0 px-6 py-6">
-          <div className="flex items-center justify-between gap-4">
+        <div className="relative z-10 shrink-0 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center">
               <div className="min-w-0">
-                <h2 className="truncate text-3xl font-bold tracking-[-0.02em] text-white">
+                <h2 className="max-w-full text-[2rem] font-bold leading-[0.95] tracking-[-0.02em] text-white sm:truncate sm:text-3xl sm:leading-tight">
                   {t("history.transferHistory")}
                 </h2>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-white/45">
@@ -146,7 +146,7 @@ export const TransferHistory: React.FC<TransferHistoryProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-10 rounded-xl border px-3 text-xs font-medium ${
+                    className={`h-10 max-w-full rounded-xl border px-3 text-xs font-medium ${
                       filter !== 'all'
                         ? 'border-[#c9a6ff]/30 bg-[#c9a6ff]/10 text-[#c9a6ff] hover:bg-[#c9a6ff]/15'
                         : 'border-white/[0.08] bg-white/[0.04] text-white/55 hover:bg-white/[0.08] hover:text-white'

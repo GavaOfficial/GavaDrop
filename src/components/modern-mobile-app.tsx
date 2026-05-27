@@ -7,12 +7,11 @@ import {
   AlertDialogAction, 
   AlertDialogCancel, 
   AlertDialogContent, 
-  AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { Lock } from "lucide-react";
+import { LockIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/language-context";
 import { FilePreviewMetadata } from "@/components/file-preview-metadata";
@@ -149,7 +148,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const playNotificationSound = (_type: string) => {
+  const playNotificationSound = () => {
     // No-op for mobile, desktop handles this
   };
 
@@ -283,23 +282,10 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     }
   };
 
-  const tabBackgrounds: Record<typeof activeTab, string> = {
-    home:    'rgba(201, 166, 255, 0.06)',
-    devices: 'rgba(96,  165, 250, 0.06)',
-    chat:    'rgba(52,  211, 153, 0.06)',
-    history: 'rgba(251, 191,  36, 0.06)',
-  };
-
   return (
     <>
-      <div className="h-full flex flex-col">
-        <div
-          className="flex-1 overflow-hidden"
-          style={{
-            backgroundColor: tabBackgrounds[activeTab],
-            transition: 'background-color 0.45s ease',
-          }}
-        >
+      <div className="dark flex h-full flex-col overflow-hidden bg-[#030303] text-white">
+        <div className="min-h-0 flex-1 overflow-hidden bg-[#030303]">
           {renderActiveTab()}
         </div>
         <MobileBottomNav
@@ -376,7 +362,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
               ))}
             </div>
             <div className="mt-4 rounded-xl border border-[#c9a6ff]/15 bg-[#c9a6ff]/10 px-4 py-3 text-sm text-white/70">
-              {t("dialog.total")}: <span className="font-medium text-white">{incomingBatchRequestProp?.files.length} {t("dialog.files")} · {incomingBatchRequestProp ? formatFileSize(incomingBatchRequestProp.files.reduce((s, f) => s + f.fileSize, 0)) : ''}</span>
+              {t("dialog.total")}: <span className="font-medium text-white">{incomingBatchRequestProp?.files.length} {t("dialog.files")} - {incomingBatchRequestProp ? formatFileSize(incomingBatchRequestProp.files.reduce((s, f) => s + f.fileSize, 0)) : ''}</span>
             </div>
           </div>
           <AlertDialogFooter>
@@ -397,7 +383,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-3">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#dff36b]/15 text-[#dff36b]">
-                  <Lock className="h-5 w-5" />
+                  <LockIcon className="h-5 w-5" weight="bold" />
                 </span>
                 <span className="min-w-0">
                   <span className="block">{t("encryption.fileEncrypted")}</span>
@@ -427,7 +413,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
               {t("encryption.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDecryptFile} disabled={!decryptPassword.trim()} className="bg-[#dff36b] text-black hover:bg-[#cfe05a]">
-              <Lock className="h-4 w-4" />
+              <LockIcon className="h-4 w-4" weight="bold" />
               {t("encryption.decryptAndDownload")}
             </AlertDialogAction>
           </AlertDialogFooter>

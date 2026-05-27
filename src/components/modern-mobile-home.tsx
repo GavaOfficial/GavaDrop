@@ -2,21 +2,20 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { 
-  Upload, 
-  X,
-  Folder,
-  Send,
-  Wifi,
-  WifiOff,
-  Plus,
-  Zap,
-  Lock,
-  Unlock
-} from "lucide-react";
+import {
+  FolderIcon,
+  LockIcon,
+  LockOpenIcon,
+  PaperPlaneTiltIcon,
+  PlusIcon,
+  UploadSimpleIcon,
+  WifiHighIcon,
+  WifiSlashIcon,
+  XIcon,
+  LightningIcon,
+} from "@phosphor-icons/react";
 import { useLanguage } from "@/contexts/language-context";
 import { FilePreview } from "@/components/file-preview";
 
@@ -82,11 +81,8 @@ export const ModernMobileHome = ({
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
     if (!selectedPeer) return;
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    onFilesSelect(droppedFiles);
+    onFilesSelect(Array.from(e.dataTransfer.files));
   }, [selectedPeer, onFilesSelect]);
 
   const handleFileSelect = useCallback(() => {
@@ -98,62 +94,49 @@ export const ModernMobileHome = ({
   const totalItems = selectedFiles.length + selectedFolders.length;
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header Status */}
-      <div className="px-6 py-4">
-        <div className="flex items-center gap-3 mb-2">
-          <div className={`p-2 rounded-md ${isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-            {isConnected ? (
-              <Wifi className="h-5 w-5 text-green-600 dark:text-green-400" />
-            ) : (
-              <WifiOff className="h-5 w-5 text-red-600 dark:text-red-400" />
-            )}
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground">
-              {selectedPeer ? `${t("transfer.sendingTo")} ${peerName}` : t("transfer.selectDeviceToStart")}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {isConnected ? t("status.connected") : t("status.disconnected")}
-            </p>
+    <div className="flex h-full flex-col overflow-hidden bg-[#030303] text-white">
+      <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+18px)]">
+        <div className="rounded-[1.15rem] bg-[#171916] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="flex items-center gap-3">
+            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${isConnected ? 'bg-[#c9a6ff]/15 text-[#c9a6ff]' : 'bg-orange-400/15 text-orange-300'}`}>
+              {isConnected ? <WifiHighIcon className="h-5 w-5" weight="bold" /> : <WifiSlashIcon className="h-5 w-5" weight="bold" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-semibold tracking-[-0.02em]">
+                {selectedPeer ? `${t("transfer.sendingTo")} ${peerName}` : t("transfer.selectDeviceToStart")}
+              </p>
+              <p className="mt-1 text-sm font-medium text-white/40">
+                {isConnected ? t("status.connected") : t("status.disconnected")}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Transfer Progress */}
       {transferProgress && (
-        <div className="mx-6 mb-4">
-          <Card className="p-4 border-border bg-card animate-fade-in-up">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 bg-accent rounded-md">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground truncate">
-                  {transferProgress.fileName}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {Math.round(transferProgress.progress)}% completato
+        <div className="shrink-0 px-5 pb-3">
+          <div className="transfer-queue-enter rounded-[1.15rem] bg-[#171916] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e6d5ff] text-black">
+                <LightningIcon className="h-5 w-5" weight="bold" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{transferProgress.fileName}</p>
+                <p className="mt-0.5 text-xs font-medium text-[#c9a6ff]">
+                  {Math.round(transferProgress.progress)}% {t("progress.completed")}
                 </p>
               </div>
-              <div className="text-2xl font-semibold text-primary">
-                {Math.round(transferProgress.progress)}%
-              </div>
+              <p className="text-2xl font-semibold text-[#c9a6ff]">{Math.round(transferProgress.progress)}%</p>
             </div>
-            <Progress value={transferProgress.progress} />
-          </Card>
+            <Progress value={transferProgress.progress} className="h-3" />
+          </div>
         </div>
       )}
 
-      {/* File Drop Zone */}
-      <div className="flex-1 px-6 overflow-hidden">
-        <div
-          className={`h-full border-2 border-dashed rounded-lg transition-smooth bg-card ${
-            isDragOver && selectedPeer
-              ? "border-primary bg-accent/60 scale-[1.01]"
-            : selectedPeer
-              ? "border-border hover:border-primary/60 hover:bg-accent/25"
-              : "border-muted bg-muted/20"
+      <main className="min-h-0 flex-1 px-5 pb-4">
+        <section
+          className={`relative flex h-full flex-col overflow-hidden rounded-[1.35rem] bg-[#080907] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[transform,background-color] duration-500 ${
+            isDragOver && selectedPeer ? "scale-[1.01] bg-[#11120f]" : ""
           }`}
           onDragOver={(e) => {
             e.preventDefault();
@@ -165,214 +148,124 @@ export const ModernMobileHome = ({
           }}
           onDrop={handleFileDrop}
         >
+          <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#8f55ff]/25 to-transparent transition-opacity duration-300 ${isDragOver && selectedPeer ? 'opacity-100' : 'opacity-0'}`} />
+
           {hasItems ? (
-            <div className="h-full flex flex-col p-4">
-              {/* Items Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">
-{totalItems} {totalItems === 1 ? t("transfer.element") : t("transfer.elements")}
+            <div className="relative z-10 flex h-full min-h-0 flex-col p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-2xl font-semibold tracking-[-0.02em]">
+                    {totalItems} {totalItems === 1 ? t("transfer.element") : t("transfer.elements")}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-{t("transfer.readyForSending")}
-                  </p>
+                  <p className="mt-1 text-sm font-medium text-white/40">{t("transfer.readyForSending")}</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onClearAll}
-                    disabled={isSending}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <X className="h-4 w-4" />
+                <div className="flex shrink-0 gap-2">
+                  <Button variant="ghost" size="sm" onClick={onClearAll} disabled={isSending} className="h-10 w-10 rounded-xl p-0 text-white/45 hover:bg-white/[0.08] hover:text-white">
+                    <XIcon className="h-4 w-4" weight="bold" />
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleFileSelect}
-                    disabled={!selectedPeer || isSending}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-{t("transfer.add")}
+                  <Button size="sm" onClick={handleFileSelect} disabled={!selectedPeer || isSending} className="h-10 rounded-xl bg-[#e6d5ff] px-3 text-black hover:bg-[#d9bcff]">
+                    <PlusIcon className="h-4 w-4" weight="bold" />
                   </Button>
                 </div>
               </div>
 
-              {/* Items List */}
-              <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar">
-                {/* Folders */}
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
                 {selectedFolders.map((folder, index) => (
-                  <Card key={`folder-${index}`} className="file-card-modern animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-amber-100 dark:bg-amber-950/40 rounded-md">
-                        <Folder className="h-5 w-5 text-amber-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">
-                          {folder.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatFileSize(folder.size)} • {folder.files.length} file{folder.files.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onRemoveFolder(index)}
-                        disabled={isSending}
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 transition-smooth"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                  <div key={`folder-${index}`} className="transfer-drop-compact flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ animationDelay: `${index * 45}ms` }}>
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f3ead2] text-black/70">
+                      <FolderIcon className="h-5 w-5" weight="bold" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{folder.name}</p>
+                      <p className="mt-0.5 text-xs font-medium text-white/35">{formatFileSize(folder.size)} - {folder.files.length} file</p>
                     </div>
-                  </Card>
+                    <Button variant="ghost" size="sm" onClick={() => onRemoveFolder(index)} disabled={isSending} className="h-8 w-8 rounded-lg p-0 text-white/35 hover:bg-white/[0.08] hover:text-white">
+                      <XIcon className="h-4 w-4" weight="bold" />
+                    </Button>
+                  </div>
                 ))}
 
-                {/* Files */}
-                {selectedFiles.map((file, index) => {
-                  return (
-                    <Card key={`file-${index}`} className="file-card-modern animate-fade-in-up" style={{ animationDelay: `${(selectedFolders.length + index) * 50}ms` }}>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <FilePreview file={file} size="small" className="rounded-xl" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground truncate">
-                            {file.webkitRelativePath || file.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatFileSize(file.size)}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onRemoveFile(index)}
-                          disabled={isSending}
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 transition-smooth"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {/* Encryption Section */}
-              <div className="mt-4">
-                <Card className="p-4 bg-card border-border">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-accent rounded-md">
-                      {isEncryptionEnabled ? (
-                        <Lock className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Unlock className="h-5 w-5 text-gray-400" />
-                      )}
+                {selectedFiles.map((file, index) => (
+                  <div key={`file-${index}`} className="transfer-drop-compact flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ animationDelay: `${(selectedFolders.length + index) * 45}ms` }}>
+                    <FilePreview file={file} size="small" className="rounded-xl" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{file.webkitRelativePath || file.name}</p>
+                      <p className="mt-0.5 text-xs font-medium text-white/35">{formatFileSize(file.size)}</p>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium text-foreground">
-                          {t("file.encryption")}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant={isEncryptionEnabled ? "default" : "outline"}
-                          onClick={() => onToggleEncryption(!isEncryptionEnabled)}
-                          className={`h-8 px-3 ${
-                            isEncryptionEnabled 
-                              ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
-                              : 'border-border text-foreground hover:bg-accent'
-                          }`}
-                        >
-                          {isEncryptionEnabled ? t("file.enabled") : t("file.disabled")}
-                        </Button>
-                      </div>
-                      {isEncryptionEnabled && (
-                        <Input
-                          type="password"
-                          placeholder={t("file.encryptionPassword")}
-                          value={encryptionPassword}
-                          onChange={(e) => onPasswordChange(e.target.value)}
-                          className="mt-3 bg-background border-input"
-                        />
-                      )}
-                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => onRemoveFile(index)} disabled={isSending} className="h-8 w-8 rounded-lg p-0 text-white/35 hover:bg-white/[0.08] hover:text-white">
+                      <XIcon className="h-4 w-4" weight="bold" />
+                    </Button>
                   </div>
-                </Card>
+                ))}
               </div>
 
-              {/* Send Button */}
-              <div className="mt-4">
-                <Button
-                  onClick={onSend}
-                  disabled={!selectedPeer || isSending}
-                  size="lg"
-                  className="w-full h-14 text-lg font-semibold transition-smooth"
-                >
-                  {isSending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      {t("transfer.sending")}
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-5 w-5 mr-3" />
-                      {t("transfer.send")} {totalItems} {totalItems === 1 ? t("transfer.element") : t("transfer.elements")}
-                    </>
-                  )}
-                </Button>
+              <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isEncryptionEnabled}
+                    onChange={(e) => onToggleEncryption(e.target.checked)}
+                    className="rounded border-white/20 bg-black/30 text-[#c9a6ff] focus:ring-[#c9a6ff]"
+                  />
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                    {isEncryptionEnabled ? <LockIcon className="h-4 w-4 text-[#dff36b]" weight="bold" /> : <LockOpenIcon className="h-4 w-4 text-white/35" weight="bold" />}
+                    {t("encryption.endToEnd")}
+                  </span>
+                </label>
+                {isEncryptionEnabled && (
+                  <Input
+                    type="password"
+                    placeholder={t("encryption.passwordPlaceholder")}
+                    value={encryptionPassword}
+                    onChange={(e) => onPasswordChange(e.target.value)}
+                    className="mt-3 h-10 rounded-xl border-white/[0.08] bg-white/[0.04] text-sm text-white placeholder:text-white/35 focus-visible:ring-[#c9a6ff]"
+                  />
+                )}
               </div>
+
+              <Button onClick={onSend} disabled={!selectedPeer || isSending} size="lg" className="mt-4 h-12 w-full rounded-xl bg-[#e6d5ff] font-semibold text-black hover:bg-[#d9bcff] disabled:opacity-45">
+                {isSending ? (
+                  <span className="flex items-center gap-3">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/20 border-b-black" />
+                    {t("transfer.sending")}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-3">
+                    <PaperPlaneTiltIcon className="h-5 w-5" weight="bold" />
+                    {t("transfer.send")} {totalItems}
+                  </span>
+                )}
+              </Button>
             </div>
           ) : (
-            <div className="empty-state-modern animate-fade-in-up h-full">
-              <div className={`empty-state-icon ${selectedPeer ? '' : 'opacity-50'}`}>
-                <Upload className={`h-10 w-10 ${
-                  selectedPeer ? 'text-primary' : 'text-muted-foreground'
-                }`} />
-              </div>
-
-              <h3 className={`text-xl font-semibold mb-2 ${
-                selectedPeer ? 'text-foreground' : 'text-muted-foreground'
-              }`}>
+            <div className="relative z-10 flex h-full flex-col items-center justify-center px-7 text-center">
+              <span className={`mb-6 grid h-24 w-24 place-items-center rounded-[1.4rem] border border-white/[0.06] bg-white/[0.035] ${selectedPeer ? '' : 'opacity-45'}`}>
+                <UploadSimpleIcon className={`h-12 w-12 ${selectedPeer ? 'text-[#c9a6ff]' : 'text-white/35'}`} weight="bold" />
+              </span>
+              <h3 className="max-w-xs text-3xl font-semibold tracking-[-0.03em] text-white">
                 {selectedPeer ? t("transfer.dragFilesHere") : t("transfer.selectDeviceToStart")}
               </h3>
-
-              <p className="text-muted-foreground mb-8 leading-relaxed max-w-xs">
-                {selectedPeer
-                  ? t("transfer.orUseButtons")
-                  : t("transfer.chooseFromDevicesTab")
-                }
+              <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-white/40">
+                {selectedPeer ? t("transfer.orUseButtons") : t("transfer.chooseFromDevicesTab")}
               </p>
 
               {selectedPeer && (
-                <div className="flex flex-col gap-3 w-full max-w-xs">
-                  <Button
-                    onClick={handleFileSelect}
-                    size="lg"
-                    className="w-full gap-3 h-12 transition-smooth"
-                  >
-                    <Upload className="h-5 w-5" />
+                <div className="mt-8 flex w-full max-w-xs flex-col gap-3">
+                  <Button onClick={handleFileSelect} size="lg" className="h-12 w-full rounded-xl bg-[#e6d5ff] font-semibold text-black hover:bg-[#d9bcff]">
+                    <UploadSimpleIcon className="mr-2 h-5 w-5" weight="bold" />
                     {t("transfer.selectFiles")}
                   </Button>
-                  <Button
-                    onClick={onFolderSelect}
-                    size="lg"
-                    variant="outline"
-                    className="w-full gap-3 h-12 bg-card hover:bg-accent hover:border-primary/40 transition-smooth"
-                  >
-                    <Folder className="h-5 w-5" />
+                  <Button onClick={onFolderSelect} size="lg" variant="outline" className="h-12 w-full rounded-xl border-white/[0.08] bg-white/[0.04] font-semibold text-white hover:bg-white/[0.08] hover:text-white">
+                    <FolderIcon className="mr-2 h-5 w-5" weight="bold" />
                     {t("transfer.selectFolder")}
                   </Button>
                 </div>
               )}
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
 
-      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"

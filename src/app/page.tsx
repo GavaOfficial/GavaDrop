@@ -618,6 +618,21 @@ export default function Home() {
     setIsDragOver(false);
   }, []);
 
+  const getAddedItemsMessage = useCallback((folderCount: number, fileCount: number) => {
+    const folderLabel = folderCount === 1 ? t("message.folderAdded") : t("message.foldersAdded");
+    const fileLabel = fileCount === 1 ? t("message.fileAdded") : t("message.filesAdded");
+
+    if (folderCount > 0 && fileCount > 0) {
+      return `${folderCount} ${folderLabel} ${t("message.and")} ${fileCount} ${fileLabel}`;
+    }
+
+    if (folderCount > 0) {
+      return `${folderCount} ${folderLabel}`;
+    }
+
+    return `${fileCount} ${fileLabel}`;
+  }, [t]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -635,12 +650,8 @@ export default function Home() {
     setSelectedFiles(prev => [...prev, ...singleFiles]);
     setSelectedFolders(prev => [...prev, ...folders]);
     
-    const message = folders.length > 0 
-      ? `${folders.length} ${folders.length === 1 ? t("message.folderAdded") : t("message.foldersAdded")} ${t("message.and")} ${singleFiles.length} ${t("message.filesAdded")}`
-      : `${singleFiles.length} ${t("message.filesAdded")}`;
-    
-    toast.success(message);
-  }, [selectedPeer, t]);
+    toast.success(getAddedItemsMessage(folders.length, singleFiles.length));
+  }, [getAddedItemsMessage, selectedPeer, t]);
 
   const handleFileSelect = useCallback(() => {
     if (!selectedPeer) {
@@ -675,11 +686,7 @@ export default function Home() {
     setSelectedFiles(prev => [...prev, ...singleFiles]);
     setSelectedFolders(prev => [...prev, ...folders]);
     
-    const message = folders.length > 0 
-      ? `${folders.length} ${folders.length === 1 ? t("message.folderAdded") : t("message.foldersAdded")} ${t("message.and")} ${singleFiles.length} ${t("message.filesAdded")}`
-      : `${singleFiles.length} ${t("message.filesAdded")}`;
-    
-    toast.success(message);
+    toast.success(getAddedItemsMessage(folders.length, singleFiles.length));
     
     // Reset file inputs
     if (fileInputRef.current) {
@@ -690,7 +697,7 @@ export default function Home() {
     }
     // Reset folder selection state
     isSelectingFolderRef.current = false;
-  }, [t]);
+  }, [getAddedItemsMessage]);
 
   const removeFile = useCallback((index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -1423,12 +1430,8 @@ export default function Home() {
     setSelectedFiles(prev => [...prev, ...singleFiles]);
     setSelectedFolders(prev => [...prev, ...folders]);
     
-    const message = folders.length > 0 
-      ? `${folders.length} ${folders.length === 1 ? t("message.folderAdded") : t("message.foldersAdded")} ${t("message.and")} ${singleFiles.length} ${t("message.filesAdded")}`
-      : `${singleFiles.length} ${t("message.filesAdded")}`;
-    
-    toast.success(message);
-  }, [t]);
+    toast.success(getAddedItemsMessage(folders.length, singleFiles.length));
+  }, [getAddedItemsMessage]);
 
   const handleMobileFolderSelect = useCallback(() => {
     if (!selectedPeer) {
@@ -1446,7 +1449,7 @@ export default function Home() {
   // Mobile/PWA Layout
   if (isMobile || isPWA) {
     return (
-      <div className="h-screen flex flex-col ios-app-container bg-background">
+      <div className="dark flex h-screen flex-col ios-app-container bg-[#030303]">
         {/* Modern Mobile App usando le funzioni desktop esatte */}
         <ModernMobileApp
           selectedFiles={selectedFiles}

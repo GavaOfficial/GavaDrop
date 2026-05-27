@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { 
-  MessageCircle, 
-  Send, 
-  User,
-  ArrowDown
-} from "lucide-react";
+import {
+  ArrowDownIcon,
+  ChatCircleIcon,
+  PaperPlaneTiltIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
 import { useLanguage } from "@/contexts/language-context";
 
 interface Message {
@@ -46,12 +46,10 @@ export const ModernMobileChat = ({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const { t } = useLanguage();
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesContainerRef.current) {
       const container = messagesContainerRef.current;
       const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-      
       if (isNearBottom) {
         container.scrollTop = container.scrollHeight;
         setShowScrollButton(false);
@@ -61,31 +59,23 @@ export const ModernMobileChat = ({
     }
   }, [messages]);
 
-  // Mark messages as read when component mounts
   useEffect(() => {
-    if (unreadCount > 0) {
-      onMarkAsRead();
-    }
+    if (unreadCount > 0) onMarkAsRead();
   }, [unreadCount, onMarkAsRead]);
 
-  // Handle scroll to detect if user scrolled up
   const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const container = messagesContainerRef.current;
-      const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-      setShowScrollButton(!isNearBottom && messages.length > 0);
-    }
+    if (!messagesContainerRef.current) return;
+    const container = messagesContainerRef.current;
+    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+    setShowScrollButton(!isNearBottom && messages.length > 0);
   };
 
-  // Scroll to bottom function
   const scrollToBottom = () => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      setShowScrollButton(false);
-    }
+    if (!messagesContainerRef.current) return;
+    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    setShowScrollButton(false);
   };
 
-  // Handle send message
   const handleSend = () => {
     if (inputMessage.trim() && selectedPeer && isConnected) {
       onSendMessage();
@@ -93,233 +83,158 @@ export const ModernMobileChat = ({
     }
   };
 
-  // Handle textarea auto-resize
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const textarea = e.target;
     onInputChange(textarea.value);
-    
-    // Auto-resize textarea
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
   };
 
-  // Group messages by date
-  const groupMessagesByDate = (messages: Message[]) => {
+  const groupMessagesByDate = (items: Message[]) => {
     const groups: { [key: string]: Message[] } = {};
-    
-    messages.forEach(message => {
+    items.forEach(message => {
       const date = new Date(message.timestamp).toDateString();
-      if (!groups[date]) {
-        groups[date] = [];
-      }
+      if (!groups[date]) groups[date] = [];
       groups[date].push(message);
     });
-    
     return groups;
   };
 
-  const messageGroups = groupMessagesByDate(messages);
   const today = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
+  const messageGroups = groupMessagesByDate(messages);
 
   const formatDateGroup = (dateString: string) => {
     if (dateString === today) return t("history.today");
     if (dateString === yesterday) return t("history.yesterday");
-    return new Date(dateString).toLocaleDateString('it-IT', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
+    return new Date(dateString).toLocaleDateString('it-IT', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
     });
   };
 
   if (!selectedPeer) {
     return (
-      <div className="flex flex-col h-full bg-background">
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <div className="p-6 bg-muted/50 rounded-md mb-6">
-            <MessageCircle className="h-16 w-16 text-muted-foreground/50" />
-          </div>
-          <h3 className="text-xl font-semibold text-foreground mb-2">
-{t("chat.selectDevice")}
-          </h3>
-          <p className="text-muted-foreground max-w-sm">
-{t("chat.chooseFromDevices")}
-          </p>
+      <div className="flex h-full flex-col bg-[#030303] text-white">
+        <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+          <span className="mb-6 grid h-24 w-24 place-items-center rounded-[1.4rem] border border-white/[0.06] bg-white/[0.035]">
+            <ChatCircleIcon className="h-12 w-12 text-[#c9a6ff]" weight="bold" />
+          </span>
+          <h3 className="text-3xl font-semibold tracking-[-0.03em]">{t("chat.selectDevice")}</h3>
+          <p className="mt-3 max-w-sm text-sm font-medium leading-relaxed text-white/40">{t("chat.chooseFromDevices")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-background/95 backdrop-blur-md border-b border-border/20">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-12 h-12 bg-accent rounded-md flex items-center justify-center">
-              <User className="h-6 w-6 text-primary" />
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#030303] text-white">
+      <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+18px)]">
+        <div className="rounded-[1.15rem] bg-[#171916] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="flex items-center gap-3">
+            <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#f3ead2] text-black/70">
+              <UserIcon className="h-6 w-6" weight="bold" />
+              {isConnected && <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#171916] bg-[#dff36b]" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-xl font-semibold tracking-[-0.02em]">{peerName || t("chat.unknownDevice")}</h3>
+              <p className="mt-1 text-sm font-medium text-white/40">
+                {isConnected ? t("chat.online") : t("chat.offline")} - {messages.length} {t("chat.messages")}
+              </p>
             </div>
-            {isConnected && (
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-background rounded-full"></div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground truncate">
-              {peerName || t("chat.unknownDevice")}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-{isConnected ? t("chat.online") : t("chat.offline")} • {messages.length} {t("chat.messages")}
-            </p>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Messages Container */}
-      <div 
+      <main
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4"
-        style={{ 
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain'
-        }}
+        className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 custom-scrollbar"
+        style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
       >
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-16">
-            <div className="p-6 bg-accent rounded-md mb-4">
-              <MessageCircle className="h-12 w-12 text-primary" />
+        <section className="flex min-h-full flex-col rounded-[1.35rem] bg-[#080907] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          {messages.length === 0 ? (
+            <div className="flex min-h-full flex-1 flex-col items-center justify-center px-3 py-16 text-center">
+              <span className="mb-5 grid h-20 w-20 place-items-center rounded-[1.25rem] border border-white/[0.06] bg-white/[0.035]">
+                <ChatCircleIcon className="h-10 w-10 text-[#c9a6ff]" weight="bold" />
+              </span>
+              <h4 className="text-2xl font-semibold tracking-[-0.02em]">{t("chat.noMessagesYet")}</h4>
+              <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-white/40">
+                {t("chat.sendFirstMessage")} {peerName} {t("chat.startConversationWith")}
+              </p>
             </div>
-            <h4 className="text-lg font-semibold text-foreground mb-2">
-{t("chat.noMessagesYet")}
-            </h4>
-            <p className="text-muted-foreground max-w-xs">
-{t("chat.sendFirstMessage")} {peerName} {t("chat.startConversationWith")}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(messageGroups).map(([dateString, dateMessages]) => (
-              <div key={dateString}>
-                {/* Date Separator */}
-                <div className="flex items-center justify-center mb-4">
-                  <div className="px-3 py-1 bg-muted/60 rounded-md">
-                    <span className="text-xs font-medium text-muted-foreground">
+          ) : (
+            <div className="flex min-h-full flex-col justify-end space-y-6">
+              {Object.entries(messageGroups).map(([dateString, dateMessages]) => (
+                <div key={dateString}>
+                  <div className="mb-4 flex justify-center">
+                    <span className="rounded-full border border-white/[0.06] bg-white/[0.04] px-3 py-1 text-xs font-medium text-white/40">
                       {formatDateGroup(dateString)}
                     </span>
                   </div>
-                </div>
+                  <div className="space-y-3">
+                    {dateMessages.map((message, index) => {
+                      const prevMessage = dateMessages[index - 1];
+                      const nextMessage = dateMessages[index + 1];
+                      const isFirstInSequence = !prevMessage || prevMessage.isOwn !== message.isOwn;
+                      const isLastInSequence = !nextMessage || nextMessage.isOwn !== message.isOwn;
 
-                {/* Messages for this date */}
-                <div className="space-y-3">
-                  {dateMessages.map((message, index) => {
-                    const prevMessage = dateMessages[index - 1];
-                    const nextMessage = dateMessages[index + 1];
-                    const isFirstInSequence = !prevMessage || prevMessage.isOwn !== message.isOwn;
-                    const isLastInSequence = !nextMessage || nextMessage.isOwn !== message.isOwn;
-                    
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'} ${
-                          isFirstInSequence ? 'mt-4' : 'mt-1'
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[75%] px-4 py-3 ${
-                            message.isOwn
-                              ? `bg-primary text-primary-foreground ${
-                                  isFirstInSequence && isLastInSequence
-                                    ? 'rounded-2xl'
-                                    : isFirstInSequence
-                                    ? 'rounded-2xl rounded-br-md'
-                                    : isLastInSequence
-                                    ? 'rounded-2xl rounded-tr-md'
-                                    : 'rounded-l-2xl rounded-r-md'
-                                }`
-                              : `bg-muted text-foreground ${
-                                  isFirstInSequence && isLastInSequence
-                                    ? 'rounded-2xl'
-                                    : isFirstInSequence
-                                    ? 'rounded-2xl rounded-bl-md'
-                                    : isLastInSequence
-                                    ? 'rounded-2xl rounded-tl-md'
-                                    : 'rounded-r-2xl rounded-l-md'
-                                }`
-                          } shadow-sm`}
-                        >
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                            {message.text}
-                          </p>
-                          {isLastInSequence && (
-                            <p className={`text-xs mt-2 ${
-                              message.isOwn 
-                                ? 'text-primary-foreground/60' 
-                                : 'text-muted-foreground'
-                            }`}>
-                              {new Date(message.timestamp).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </p>
-                          )}
+                      return (
+                        <div key={message.id} className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'} ${isFirstInSequence ? 'mt-4' : 'mt-1'}`}>
+                          <div
+                            className={`max-w-[78%] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                              message.isOwn
+                                ? `bg-[#e6d5ff] text-black ${isFirstInSequence && isLastInSequence ? 'rounded-2xl' : isFirstInSequence ? 'rounded-2xl rounded-br-md' : isLastInSequence ? 'rounded-2xl rounded-tr-md' : 'rounded-l-2xl rounded-r-md'}`
+                                : `border border-white/[0.06] bg-[#141612] text-white ${isFirstInSequence && isLastInSequence ? 'rounded-2xl' : isFirstInSequence ? 'rounded-2xl rounded-bl-md' : isLastInSequence ? 'rounded-2xl rounded-tl-md' : 'rounded-r-2xl rounded-l-md'}`
+                            }`}
+                          >
+                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.text}</p>
+                            {isLastInSequence && (
+                              <p className={`mt-2 text-xs ${message.isOwn ? 'text-black/45' : 'text-white/30'}`}>
+                                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
 
-      {/* Scroll to bottom button */}
       {showScrollButton && (
-        <div className="absolute bottom-28 right-4">
-          <Button
-            onClick={scrollToBottom}
-            size="sm"
-            className="rounded-md w-12 h-12 p-0 bg-primary hover:bg-primary/90"
-          >
-            <ArrowDown className="h-5 w-5" />
-          </Button>
-        </div>
+        <Button onClick={scrollToBottom} size="sm" className="absolute bottom-28 right-5 h-11 w-11 rounded-xl bg-[#e6d5ff] p-0 text-black hover:bg-[#d9bcff]">
+          <ArrowDownIcon className="h-5 w-5" weight="bold" />
+        </Button>
       )}
 
-      {/* Input Area */}
-      <div className="border-t border-border/20 bg-background/95 backdrop-blur-md p-4">
-        <div className="flex items-end gap-3">
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={inputMessage}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={isConnected ? t("chat.typeMessage") : t("chat.offline")}
-              disabled={!selectedPeer || !isConnected}
-              className="w-full resize-none rounded-md border border-border bg-card px-4 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:bg-background disabled:cursor-not-allowed disabled:opacity-50 min-h-[48px] max-h-[120px]"
-              style={{ 
-                WebkitAppearance: 'none',
-                fontSize: '16px' // Prevents zoom on iOS
-              }}
-            />
-          </div>
-          
-          <Button
-            onClick={handleSend}
-            disabled={!inputMessage.trim() || !selectedPeer || !isConnected}
-            size="sm"
-            className="rounded-md w-12 h-12 p-0 flex-shrink-0 bg-primary hover:bg-primary/90 disabled:opacity-50"
-          >
-            <Send className="h-5 w-5" />
+      <footer className="shrink-0 px-5 pb-4">
+        <div className="flex items-end gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <textarea
+            ref={inputRef}
+            value={inputMessage}
+            onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder={isConnected ? t("chat.typeMessage") : t("chat.offline")}
+            disabled={!selectedPeer || !isConnected}
+            className="min-h-[48px] max-h-[120px] flex-1 resize-none rounded-xl border-transparent bg-transparent px-2 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:ring-2 focus:ring-[#c9a6ff] disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ WebkitAppearance: 'none', fontSize: '16px' }}
+          />
+          <Button onClick={handleSend} disabled={!inputMessage.trim() || !selectedPeer || !isConnected} size="sm" className="h-12 w-12 shrink-0 rounded-xl bg-[#e6d5ff] p-0 text-black hover:bg-[#d9bcff] disabled:opacity-40">
+            <PaperPlaneTiltIcon className="h-5 w-5" weight="bold" />
           </Button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

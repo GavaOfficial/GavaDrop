@@ -204,11 +204,24 @@ function getDeviceName() {
     return `${adj} ${animal}`;
 }
 
+function getClientIp(socket) {
+    const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+    const forwardedIp = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : typeof forwardedFor === 'string'
+            ? forwardedFor.split(/\s*,\s*/)[0]
+            : null;
+
+    const ip = forwardedIp || socket.handshake.address || socket.conn.remoteAddress || '';
+    const normalizedIp = ip.replace('::ffff:', '');
+
+    if (normalizedIp === '::1') return '127.0.0.1';
+    return normalizedIp;
+}
+
 function getRoomId(ip) {
     if (!ip || typeof ip !== 'string') return 'room_unknown';
-    const parts = ip.replace('::ffff:', '').split('.');
-    if (parts.length !== 4) return 'room_unknown';
-    return `room_${parts.slice(0, 3).join('.')}`;
+    return `room_${ip}`;
 }
 
 function safeHandler(socket, handler) {
@@ -233,7 +246,7 @@ function isSocketOnline(socketId) {
 io.on('connection', (socket) => {
     log('Client connected:', socket.id);
 
-    const clientIp = socket.handshake.address || socket.conn.remoteAddress;
+    const clientIp = getClientIp(socket);
     const roomId = getRoomId(clientIp);
 
     let client = {

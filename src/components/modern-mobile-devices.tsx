@@ -2,24 +2,23 @@
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Users,
-  Smartphone, 
-  Monitor, 
-  Tablet,
-  Wifi,
-  WifiOff,
-  Search,
-  MessageCircle,
-  Edit3,
-  Check,
-  X,
-  Zap,
-  Clock
-} from "lucide-react";
+import {
+  ChatCircleIcon,
+  CheckIcon,
+  ClockIcon,
+  DeviceMobileIcon,
+  DeviceTabletIcon,
+  MagnifyingGlassIcon,
+  MonitorIcon,
+  PencilLineIcon,
+  UsersIcon,
+  WifiHighIcon,
+  WifiSlashIcon,
+  XIcon,
+  LightningIcon,
+} from "@phosphor-icons/react";
 import { useLanguage } from "@/contexts/language-context";
 
 interface Peer {
@@ -68,48 +67,44 @@ export const ModernMobileDevices = ({
 
   const getDeviceIcon = (deviceName: string) => {
     const name = deviceName.toLowerCase();
-    if (name.includes('phone') || name.includes('mobile')) return Smartphone;
-    if (name.includes('tablet') || name.includes('ipad')) return Tablet;
-    return Monitor;
+    if (name.includes('phone') || name.includes('mobile')) return DeviceMobileIcon;
+    if (name.includes('tablet') || name.includes('ipad')) return DeviceTabletIcon;
+    return MonitorIcon;
   };
 
-  const filteredPeers = peers.filter(peer => 
+  const filteredPeers = peers.filter(peer =>
     peer.deviceName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const disconnectedPeersList = Array.from(disconnectedPeers.values());
+  const totalDevices = peers.length + disconnectedPeersList.length;
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="px-6 py-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`p-3 rounded-md ${isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-            {isConnected ? (
-              <Wifi className="h-6 w-6 text-green-600 dark:text-green-400" />
-            ) : (
-              <WifiOff className="h-6 w-6 text-red-600 dark:text-red-400" />
-            )}
-          </div>
-          <div className="flex-1">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t("nav.devices")}</h2>
-            <p className="text-sm text-muted-foreground">
-{isConnected ? 
-                `${peers.length + disconnectedPeersList.length} ${peers.length + disconnectedPeersList.length === 1 ? t("device.devicesFound") : t("device.devicesFoundPlural")}` : 
-                t("device.connectionNotAvailable")
-              }
-            </p>
+    <div className="flex h-full flex-col overflow-hidden bg-[#030303] text-white">
+      <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+18px)]">
+        <div className="mb-3 rounded-[1.15rem] bg-[#171916] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="flex items-center gap-3">
+            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${isConnected ? 'bg-[#c9a6ff]/15 text-[#c9a6ff]' : 'bg-orange-400/15 text-orange-300'}`}>
+              {isConnected ? <WifiHighIcon className="h-5 w-5" weight="bold" /> : <WifiSlashIcon className="h-5 w-5" weight="bold" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-3xl font-semibold tracking-[-0.03em]">{t("nav.devices")}</h2>
+              <p className="mt-1 text-sm font-medium text-white/40">
+                {isConnected
+                  ? `${totalDevices} ${totalDevices === 1 ? t("device.devicesFound") : t("device.devicesFoundPlural")}`
+                  : t("device.connectionNotAvailable")}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* My Device Card */}
         {deviceInfo && (
-          <Card className="p-4 bg-card border-border mb-4 animate-fade-in-up">
+          <div className="rounded-[1.15rem] border border-white/[0.06] bg-[#080907] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-accent rounded-md">
-                <Monitor className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f3ead2] text-black/70">
+                <MonitorIcon className="h-5 w-5" weight="bold" />
+              </span>
+              <div className="min-w-0 flex-1">
                 {isEditingName ? (
                   <div className="flex items-center gap-2">
                     <Input
@@ -119,119 +114,98 @@ export const ModernMobileDevices = ({
                         if (e.key === 'Enter') onSaveName();
                         if (e.key === 'Escape') onCancelEdit();
                       }}
-                      className="h-8 text-sm"
-placeholder={t("device.yourDevice")}
+                      className="h-10 rounded-xl border-white/[0.08] bg-white/[0.04] text-sm text-white placeholder:text-white/35 focus-visible:ring-[#c9a6ff]"
+                      placeholder={t("device.yourDevice")}
                       autoFocus
                     />
-                    <Button size="sm" variant="ghost" onClick={onSaveName} className="h-8 w-8 p-0">
-                      <Check className="h-4 w-4 text-green-600" />
+                    <Button size="sm" variant="ghost" onClick={onSaveName} className="h-10 w-10 shrink-0 rounded-xl p-0 text-[#dff36b] hover:bg-white/[0.08]">
+                      <CheckIcon className="h-4 w-4" weight="bold" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={onCancelEdit} className="h-8 w-8 p-0">
-                      <X className="h-4 w-4 text-red-600" />
+                    <Button size="sm" variant="ghost" onClick={onCancelEdit} className="h-10 w-10 shrink-0 rounded-xl p-0 text-orange-300 hover:bg-white/[0.08]">
+                      <XIcon className="h-4 w-4" weight="bold" />
                     </Button>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-foreground">{deviceInfo.deviceName}</p>
-                      <Badge variant="secondary" className="text-xs">{t("device.youLabel")}</Badge>
+                      <p className="truncate text-sm font-semibold">{deviceInfo.deviceName}</p>
+                      <Badge className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold text-white/55 hover:bg-white/[0.08]">{t("device.youLabel")}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{t("device.yourDevice")}</p>
+                    <p className="mt-1 text-xs font-medium text-white/35">{t("device.yourDevice")}</p>
                   </>
                 )}
               </div>
               {!isEditingName && (
-                <Button size="sm" variant="ghost" onClick={onEditDeviceName} className="h-8 w-8 p-0">
-                  <Edit3 className="h-4 w-4" />
+                <Button size="sm" variant="ghost" onClick={onEditDeviceName} className="h-9 w-9 shrink-0 rounded-xl p-0 text-white/45 hover:bg-white/[0.08] hover:text-white">
+                  <PencilLineIcon className="h-4 w-4" weight="bold" />
                 </Button>
               )}
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* Search */}
         {peers.length > 3 && (
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative mt-3">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" weight="bold" />
             <Input
               placeholder={t("device.search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border rounded-md"
+              className="h-12 rounded-xl border-white/[0.08] bg-white/[0.04] pl-11 text-white placeholder:text-white/35 focus-visible:ring-[#c9a6ff]"
             />
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Devices List */}
-      <div className="flex-1 px-6 pb-4 overflow-y-auto custom-scrollbar">
+      <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 custom-scrollbar">
         {peers.length === 0 && disconnectedPeersList.length === 0 ? (
-          <div className="empty-state-modern animate-fade-in-up py-16">
-            <div className="empty-state-icon">
-              <Users className="h-10 w-10 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {t("device.noDevicesFound")}
-            </h3>
-            <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
-              {t("device.openOnOtherDevices")}
-            </p>
+          <div className="flex min-h-full flex-col items-center justify-center rounded-[1.35rem] bg-[#080907] px-7 py-16 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <span className="mb-6 grid h-24 w-24 place-items-center rounded-[1.4rem] border border-white/[0.06] bg-white/[0.035]">
+              <UsersIcon className="h-12 w-12 text-[#c9a6ff]" weight="bold" />
+            </span>
+            <h3 className="text-2xl font-semibold tracking-[-0.02em]">{t("device.noDevicesFound")}</h3>
+            <p className="mt-3 max-w-sm text-sm font-medium leading-relaxed text-white/40">{t("device.openOnOtherDevices")}</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {/* Connected Devices */}
+          <div className="space-y-2">
             {filteredPeers.map((peer, index) => {
               const DeviceIcon = getDeviceIcon(peer.deviceName);
               const isSelected = selectedPeer === peer.socketId;
+              const isLastSelected = lastSelectedClientId === peer.clientId;
               const unreadCount = unreadCounts.get(peer.clientId) || 0;
 
               return (
-                <Card
+                <button
                   key={peer.socketId}
-                  className={`peer-card animate-fade-in-up ${
-                    isSelected ? 'selected' : ''
+                  type="button"
+                  className={`transfer-drop-compact w-full rounded-xl p-0 text-left outline-none transition-[background-color,border-color,transform] duration-300 focus:ring-2 focus:ring-[#c9a6ff]/70 ${
+                    isSelected ? 'border border-[#c9a6ff] bg-[#211733]' : 'border border-white/[0.06] bg-[#171916] hover:bg-[#1f211d]'
                   }`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={() => {
-                    const newSelection = isSelected ? null : peer.socketId;
-                    onPeerSelect(newSelection);
-                  }}
+                  style={{ animationDelay: `${index * 45}ms` }}
+                  onClick={() => onPeerSelect(isSelected ? null : peer.socketId)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-md transition-smooth ${
-                      isSelected ? 'bg-primary' : 'bg-muted'
-                    }`}>
-                      <DeviceIcon className={`h-6 w-6 ${
-                        isSelected ? 'text-white' : 'text-muted-foreground'
-                      }`} />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className={`font-semibold truncate ${
-                          isSelected ? 'text-primary' : 'text-foreground'
-                        }`}>
-                          {peer.deviceName}
-                        </p>
-                      <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs">
-                          <Zap className="h-3 w-3 mr-1" />
-{t("chat.online")}
-                        </Badge>
+                  <div className="flex items-center gap-3 p-3.5">
+                    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${isSelected ? 'bg-[#c9a6ff] text-black' : 'bg-[#f3ead2] text-black/70'}`}>
+                      <DeviceIcon className="h-6 w-6" weight="bold" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="truncate text-base font-semibold">{peer.deviceName}</p>
+                        <span className="inline-flex shrink-0 items-center rounded-md bg-[#dff36b]/12 px-2 py-0.5 text-[11px] font-semibold text-[#dff36b]">
+                          <LightningIcon className="mr-1 h-3 w-3" weight="bold" />
+                          {t("chat.online")}
+                        </span>
                       </div>
-                      {isSelected && (
-                        <p className="text-sm text-primary/70">
-                          {t("device.deviceSelected")}
-                        </p>
-                      )}
+                      <p className={`mt-1 truncate text-xs font-medium ${isSelected ? 'text-[#c9a6ff]/80' : 'text-white/40'}`}>
+                        {isSelected ? t("device.deviceSelected") : isLastSelected ? t("device.recentWord") : t("device.selectDevice")}
+                      </p>
                     </div>
-
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       {unreadCount > 0 && (
-                        <Badge variant="destructive" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs">
+                        <span className="grid h-6 min-w-6 place-items-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                           {unreadCount > 9 ? '9+' : unreadCount}
-                        </Badge>
+                        </span>
                       )}
-                      
                       {isSelected && (
                         <Button
                           size="sm"
@@ -240,82 +214,56 @@ placeholder={t("device.yourDevice")}
                             e.stopPropagation();
                             onChatOpen();
                           }}
-                          className="h-8 w-8 p-0"
+                          className="h-9 w-9 rounded-xl p-0 text-white/65 hover:bg-white/[0.08] hover:text-white"
                         >
-                          <MessageCircle className="h-4 w-4" />
+                          <ChatCircleIcon className="h-5 w-5" weight="bold" />
                         </Button>
-                      )}
-                      
-                      {isSelected && (
-                        <div className="status-online"></div>
                       )}
                     </div>
                   </div>
-                </Card>
+                </button>
               );
             })}
 
-            {/* Disconnected Devices (Grace Period) */}
-            {disconnectedPeersList.map(({ peer }) => {
+            {disconnectedPeersList.map(({ peer }, index) => {
               const DeviceIcon = getDeviceIcon(peer.deviceName);
               const isSelected = selectedPeer === peer.socketId;
               const unreadCount = unreadCounts.get(peer.clientId) || 0;
-              
+
               return (
-                <Card 
+                <div
                   key={`disconnected-${peer.socketId}`}
-                  className={`p-4 opacity-60 transition-all duration-200 ${
-                    isSelected 
-                      ? 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800' 
-                      : 'border-border'
+                  className={`transfer-drop-compact rounded-xl border p-3.5 opacity-75 ${
+                    isSelected ? 'border-orange-400/35 bg-orange-400/10' : 'border-white/[0.06] bg-[#171916]'
                   }`}
+                  style={{ animationDelay: `${(filteredPeers.length + index) * 45}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-md ${
-                      isSelected ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-muted'
-                    }`}>
-                      <DeviceIcon className={`h-6 w-6 ${
-                        isSelected ? 'text-orange-500' : 'text-muted-foreground'
-                      }`} />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className={`font-semibold truncate ${
-                          isSelected ? 'text-orange-700 dark:text-orange-300' : 'text-muted-foreground'
-                        }`}>
-                          {peer.deviceName}
-                        </p>
-                        <Badge variant="outline" className="border-orange-300 text-orange-600 dark:text-orange-400 text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-{t("device.reconnecting")}
-                        </Badge>
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/[0.04] text-white/40">
+                      <DeviceIcon className="h-6 w-6" weight="bold" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="truncate text-base font-semibold text-white/65">{peer.deviceName}</p>
+                        <span className="inline-flex shrink-0 items-center rounded-md bg-orange-400/12 px-2 py-0.5 text-[11px] font-semibold text-orange-300">
+                          <ClockIcon className="mr-1 h-3 w-3" weight="bold" />
+                          {t("device.reconnecting")}
+                        </span>
                       </div>
-                      {isSelected && (
-                        <p className="text-sm text-orange-600 dark:text-orange-400">
-                          {t("device.reconnectionInProgress")}
-                        </p>
-                      )}
+                      <p className="mt-1 truncate text-xs font-medium text-white/35">{t("device.reconnectionInProgress")}</p>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      {unreadCount > 0 && (
-                        <Badge variant="outline" className="border-orange-400 text-orange-600 h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs">
-                          {unreadCount > 9 ? '9+' : unreadCount}
-                        </Badge>
-                      )}
-                      
-                      {isSelected && (
-                        <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
-                      )}
-                    </div>
+                    {unreadCount > 0 && (
+                      <span className="grid h-6 min-w-6 place-items-center rounded-full bg-orange-400 px-1.5 text-xs font-bold text-black">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 };
