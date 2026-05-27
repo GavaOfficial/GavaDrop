@@ -132,6 +132,15 @@ const server = createServer((req, res) => {
         return;
     }
 
+    if (req.url === '/debug-ip' && req.method === 'GET') {
+        const cfIp = req.headers['cf-connecting-ip'];
+        const xForwardedFor = req.headers['x-forwarded-for'];
+        const remoteAddress = req.socket.remoteAddress;
+        res.writeHead(200, corsHeaders);
+        res.end(JSON.stringify({ cfIp, xForwardedFor, remoteAddress }));
+        return;
+    }
+
     res.writeHead(404, corsHeaders);
     res.end(JSON.stringify({ error: 'Not found' }));
 });
@@ -229,6 +238,16 @@ function getClientIp(socket) {
 
 function getRoomId(ip) {
     if (!ip || typeof ip !== 'string') return 'room_unknown';
+
+    // IPv6: group by /48 prefix (first 3 groups of 16 bits = ISP-assigned home block)
+    // This handles the case where LAN devices each have a unique global IPv6 address
+    if (ip.includes(':')) {
+        const groups = ip.split(':');
+        const prefix = groups.slice(0, 3).join(':');
+        return `room_${prefix || 'ipv6'}`;
+    }
+
+    // IPv4: exact match (NAT means all LAN devices share the same public IP)
     return `room_${ip}`;
 }
 
