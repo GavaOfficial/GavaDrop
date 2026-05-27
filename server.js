@@ -287,7 +287,7 @@ io.on('connection', (socket) => {
 
         log(`Client initialized: ${socket.id}, clientId: ${clientId}, name: ${finalDeviceName}`);
 
-        socket.emit('device-info', { deviceId, deviceName: finalDeviceName });
+        socket.emit('device-info', { deviceId, deviceName: finalDeviceName, roomId });
 
         // Send current peers list
         const roomClients = Array.from(rooms.get(roomId) || [])

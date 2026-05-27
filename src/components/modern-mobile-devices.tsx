@@ -32,7 +32,7 @@ interface ModernMobileDevicesProps {
   disconnectedPeers: Map<string, { peer: Peer; disconnectedAt: number }>;
   selectedPeer: string | null;
   lastSelectedClientId: string | null;
-  deviceInfo: { deviceName: string; deviceId: string } | null;
+  deviceInfo: { deviceName: string; deviceId: string; roomId?: string } | null;
   isConnected: boolean;
   unreadCounts: Map<string, number>;
   onPeerSelect: (peerId: string | null) => void;
@@ -132,6 +132,11 @@ export const ModernMobileDevices = ({
                       <Badge className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold text-white/55 hover:bg-white/[0.08]">{t("device.youLabel")}</Badge>
                     </div>
                     <p className="mt-1 text-xs font-medium text-white/35">{t("device.yourDevice")}</p>
+                    {deviceInfo.roomId && (
+                      <p className="mt-0.5 text-[10px] font-mono text-white/25 select-all">
+                        {deviceInfo.roomId.replace('room_', '')}
+                      </p>
+                    )}
                   </>
                 )}
               </div>

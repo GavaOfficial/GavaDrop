@@ -1613,6 +1613,11 @@ export default function Home() {
                 <div>
                   <p className="text-xs text-white/45 mb-1">{t("device.yourDevice")}</p>
                   <p className="font-medium text-sm text-white">{deviceInfo.deviceName}</p>
+                  {deviceInfo.roomId && (
+                    <p className="mt-0.5 text-[10px] font-mono text-white/30 select-all">
+                      {deviceInfo.roomId.replace('room_', '')}
+                    </p>
+                  )}
                 </div>
                 <Button size="sm" variant="ghost" onClick={handleStartEditName} className="h-8 w-8 p-0">
                   <PencilLineIcon className="h-4 w-4" />

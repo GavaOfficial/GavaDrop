@@ -17,6 +17,7 @@ export interface Peer {
 export interface DeviceInfo {
   deviceId: string;
   deviceName: string;
+  roomId?: string;
 }
 
 export interface Message {

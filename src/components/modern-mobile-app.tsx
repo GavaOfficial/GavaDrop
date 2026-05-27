@@ -41,7 +41,7 @@ interface ModernMobileAppProps {
   folderInputRef: React.RefObject<HTMLInputElement | null>;
   isSelectingFolderRef: React.MutableRefObject<boolean>;
   peers: Array<{socketId: string; clientId: string; deviceName: string}>;
-  deviceInfo: {deviceName: string; deviceId: string} | null;
+  deviceInfo: {deviceName: string; deviceId: string; roomId?: string} | null;
   isConnected: boolean;
   sendFile: (file: File, peerId: string) => Promise<void>;
   sendBatchFiles: (files: File[], peerId: string) => Promise<void>;
