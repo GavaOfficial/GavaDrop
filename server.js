@@ -209,7 +209,7 @@ function getClientIp(socket) {
 
     // Cloudflare passes the real client IP in this header
     const cfIp = headers['cf-connecting-ip'];
-    if (cfIp && typeof cfIp === 'string') return cfIp.trim();
+    if (cfIp && typeof cfIp === 'string') return cfIp.split(/\s*,\s*/)[0].trim();
 
     const forwardedFor = headers['x-forwarded-for'];
     const forwardedIp = Array.isArray(forwardedFor)
