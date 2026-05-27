@@ -246,7 +246,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         message: {
           ...message,
           isOwn: false,
-          fromClientId: clientId // include so receiver can store without peer lookup
+          fromClientId: localStorage.getItem('gavadrop-client-id') || socket.id || '' // include so receiver can store without peer lookup
         }
       }));
     } else {

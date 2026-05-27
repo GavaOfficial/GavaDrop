@@ -38,22 +38,22 @@ function buttonVariants({
   );
 }
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-}) {
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+  }
+>(({ className, variant = "default", size = "default", ...props }, ref) => {
   return (
     <button
+      ref={ref}
       data-slot="button"
       className={buttonVariants({ variant, size, className })}
       {...props}
     />
   );
-}
+});
+Button.displayName = "Button";
 
 export { Button, buttonVariants };

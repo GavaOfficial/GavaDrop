@@ -148,7 +148,7 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const playNotificationSound = () => {
+  const playNotificationSound = (_type?: string) => {
     // No-op for mobile, desktop handles this
   };
 
