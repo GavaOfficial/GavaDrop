@@ -205,18 +205,26 @@ function getDeviceName() {
 }
 
 function getClientIp(socket) {
-    const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+    const headers = socket.handshake.headers;
+
+    // Cloudflare passes the real client IP in this header
+    const cfIp = headers['cf-connecting-ip'];
+    if (cfIp && typeof cfIp === 'string') return cfIp.trim();
+
+    const forwardedFor = headers['x-forwarded-for'];
     const forwardedIp = Array.isArray(forwardedFor)
         ? forwardedFor[0]
         : typeof forwardedFor === 'string'
             ? forwardedFor.split(/\s*,\s*/)[0]
             : null;
 
-    const ip = forwardedIp || socket.handshake.address || socket.conn.remoteAddress || '';
-    const normalizedIp = ip.replace('::ffff:', '');
+    const ip = (forwardedIp || socket.handshake.address || socket.conn.remoteAddress || '').trim();
 
-    if (normalizedIp === '::1') return '127.0.0.1';
-    return normalizedIp;
+    // Normalize IPv4-mapped IPv6 (::ffff:1.2.3.4 → 1.2.3.4)
+    const normalized = ip.replace(/^::ffff:/i, '');
+
+    if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return '127.0.0.1';
+    return normalized;
 }
 
 function getRoomId(ip) {
