@@ -1602,6 +1602,44 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* Desktop room tutorial */}
+      <div className="chalk-room-tutorial pointer-events-none absolute right-[610px] top-[32px] z-30 hidden w-[330px] md:block">
+        <div className="relative">
+          <p className="chalk-room-copy ml-8">
+            {roomCodeHydrated && roomCode ? t("room.tutorialShare") : t("room.tutorial")}
+          </p>
+          <svg
+            className="chalk-room-arrow absolute -right-[96px] -top-[6px] h-[74px] w-[190px]"
+            viewBox="0 0 142 74"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 9 C33 4, 55 17, 72 31 C89 45, 109 51, 132 43"
+              stroke="currentColor"
+              strokeWidth="3.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M122 33 C128 37, 133 40, 138 43 C132 46, 126 50, 120 57"
+              stroke="currentColor"
+              strokeWidth="3.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M7 15 C39 10, 55 20, 69 35 C85 51, 108 56, 131 48"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.5"
+            />
+          </svg>
+        </div>
+      </div>
+
       {/* Room panel */}
       <div className="absolute right-[290px] top-7 z-20 hidden w-[260px] md:block">
         <div className="flex h-[76px] items-center bg-[#171916] rounded-[1rem] px-4">

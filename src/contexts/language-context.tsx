@@ -49,6 +49,8 @@ const translations = {
     "device.allPeopleAreRecent": "Tutte le persone online sono nei recenti",
     "device.noResults": "Nessun risultato",
     "device.recentWord": "recenti",
+    "room.tutorial": "Inserisci qui il codice stanza per collegarti agli altri dispositivi. Stesso codice, stessa stanza.",
+    "room.tutorialShare": "Condividi questo codice con i dispositivi con cui vuoi comunicare. Chi usa lo stesso codice entra nella tua stanza.",
     
     // File Transfer
     "transfer.title": "Trasferimento File",
@@ -288,6 +290,8 @@ const translations = {
     "device.allPeopleAreRecent": "All online people are in recent",
     "device.noResults": "No results",
     "device.recentWord": "recent",
+    "room.tutorial": "Enter the room code here to connect with other devices. Same code, same room.",
+    "room.tutorialShare": "Share this code with the devices you want to communicate with. Anyone using the same code joins your room.",
     
     // File Transfer
     "transfer.title": "File Transfer",
