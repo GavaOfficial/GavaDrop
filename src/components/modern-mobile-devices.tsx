@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -8,11 +8,14 @@ import {
   ChatCircleIcon,
   CheckIcon,
   ClockIcon,
+  CopyIcon,
   DeviceMobileIcon,
   DeviceTabletIcon,
+  DoorIcon,
   MagnifyingGlassIcon,
   MonitorIcon,
   PencilLineIcon,
+  PlusIcon,
   UsersIcon,
   WifiHighIcon,
   WifiSlashIcon,
@@ -25,6 +28,8 @@ interface Peer {
   socketId: string;
   clientId: string;
   deviceName: string;
+  roomId?: string;
+  networkGroup?: string;
 }
 
 interface ModernMobileDevicesProps {
@@ -32,7 +37,7 @@ interface ModernMobileDevicesProps {
   disconnectedPeers: Map<string, { peer: Peer; disconnectedAt: number }>;
   selectedPeer: string | null;
   lastSelectedClientId: string | null;
-  deviceInfo: { deviceName: string; deviceId: string; roomId?: string } | null;
+  deviceInfo: { deviceName: string; deviceId: string; roomId?: string; networkGroup?: string } | null;
   isConnected: boolean;
   unreadCounts: Map<string, number>;
   onPeerSelect: (peerId: string | null) => void;
@@ -43,6 +48,9 @@ interface ModernMobileDevicesProps {
   onNameChange: (name: string) => void;
   onSaveName: () => void;
   onCancelEdit: () => void;
+  roomCode: string;
+  onRoomCodeChange: (code: string) => void;
+  onCreateRoom: () => Promise<string>;
 }
 
 export const ModernMobileDevices = ({
@@ -60,10 +68,16 @@ export const ModernMobileDevices = ({
   newDeviceName,
   onNameChange,
   onSaveName,
-  onCancelEdit
+  onCancelEdit,
+  roomCode,
+  onRoomCodeChange,
+  onCreateRoom
 }: ModernMobileDevicesProps) => {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [roomInput, setRoomInput] = useState(roomCode);
+
+  useEffect(() => { setRoomInput(roomCode); }, [roomCode]);
 
   const getDeviceIcon = (deviceName: string) => {
     const name = deviceName.toLowerCase();
@@ -132,11 +146,6 @@ export const ModernMobileDevices = ({
                       <Badge className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold text-white/55 hover:bg-white/[0.08]">{t("device.youLabel")}</Badge>
                     </div>
                     <p className="mt-1 text-xs font-medium text-white/35">{t("device.yourDevice")}</p>
-                    {deviceInfo.roomId && (
-                      <p className="mt-0.5 text-[10px] font-mono text-white/25 select-all">
-                        {deviceInfo.roomId.replace('room_', '')}
-                      </p>
-                    )}
                   </>
                 )}
               </div>
@@ -148,6 +157,42 @@ export const ModernMobileDevices = ({
             </div>
           </div>
         )}
+
+        {/* Room code */}
+        <div className="rounded-[1.15rem] border border-white/[0.06] bg-[#080907] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/30">Stanza</p>
+          {roomCode ? (
+            <div className="flex items-center gap-2">
+              <p className="flex-1 font-mono font-bold text-base tracking-widest text-white">{roomCode.toUpperCase()}</p>
+              <Button size="sm" variant="ghost" className="h-9 w-9 shrink-0 rounded-xl p-0 text-white/45 hover:bg-white/[0.08] hover:text-white"
+                onClick={() => { navigator.clipboard.writeText(roomCode.toUpperCase()); }}>
+                <CopyIcon className="h-4 w-4" weight="bold" />
+              </Button>
+              <Button size="sm" variant="ghost" className="h-9 w-9 shrink-0 rounded-xl p-0 text-white/45 hover:bg-white/[0.08] hover:text-red-400"
+                onClick={() => onRoomCodeChange('')}>
+                <DoorIcon className="h-4 w-4" weight="bold" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Input
+                value={roomInput}
+                onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && roomInput.trim()) onRoomCodeChange(roomInput.trim());
+                  if (e.key === 'Escape') setRoomInput('');
+                }}
+                onBlur={() => { if (roomInput.trim()) onRoomCodeChange(roomInput.trim()); }}
+                placeholder="Codice stanza"
+                className="h-9 flex-1 rounded-xl border-white/[0.08] bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:ring-[#c9a6ff] font-mono uppercase"
+              />
+              <Button size="sm" variant="ghost" className="h-9 w-9 shrink-0 rounded-xl p-0 text-white/45 hover:bg-white/[0.08] hover:text-[#dff36b]"
+                onClick={async () => { await onCreateRoom(); }}>
+                <PlusIcon className="h-4 w-4" weight="bold" />
+              </Button>
+            </div>
+          )}
+        </div>
 
         {peers.length > 3 && (
           <div className="relative mt-3">
@@ -200,6 +245,11 @@ export const ModernMobileDevices = ({
                           <LightningIcon className="mr-1 h-3 w-3" weight="bold" />
                           {t("chat.online")}
                         </span>
+                        {peer.networkGroup && deviceInfo?.networkGroup && peer.networkGroup === deviceInfo.networkGroup && (
+                          <span className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/60">
+                            LAN
+                          </span>
+                        )}
                       </div>
                       <p className={`mt-1 truncate text-xs font-medium ${isSelected ? 'text-[#c9a6ff]/80' : 'text-white/40'}`}>
                         {isSelected ? t("device.deviceSelected") : isLastSelected ? t("device.recentWord") : t("device.selectDevice")}

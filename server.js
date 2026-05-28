@@ -190,11 +190,19 @@ function queueMessageForClient(targetClientId, payload) {
     messageQueues.set(targetClientId, queue.slice(-CHAT.maxQueuePerClient));
 }
 
-function popPendingMessages(clientId) {
+function popPendingMessages(clientId, roomId) {
     pruneExpiredMessages(clientId);
     const msgs = messageQueues.get(clientId) || [];
-    messageQueues.delete(clientId);
-    return msgs;
+    const deliverable = msgs.filter(m => !roomId || m.roomId === roomId);
+    const remaining = msgs.filter(m => roomId && m.roomId !== roomId);
+
+    if (remaining.length > 0) {
+        messageQueues.set(clientId, remaining);
+    } else {
+        messageQueues.delete(clientId);
+    }
+
+    return deliverable;
 }
 
 // Periodically clean up expired messages (every hour)
@@ -205,6 +213,31 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 // === HELPER FUNCTIONS ===
+const crypto = require('crypto');
+
+function getNetworkGroup(socket) {
+    const headers = socket.handshake.headers;
+    const cfIp = headers['cf-connecting-ip'];
+    const ip = cfIp
+        ? cfIp.split(/\s*,\s*/)[0].trim()
+        : (socket.handshake.address || socket.conn.remoteAddress || '').replace(/^::ffff:/i, '');
+
+    // For IPv6, use /48 prefix (first 3 groups) to group LAN devices
+    const normalized = ip.includes(':')
+        ? ip.split(':').slice(0, 3).join(':')
+        : ip;
+
+    // Return a short hash so we don't expose raw IPs to clients
+    return crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+}
+
+function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+}
+
 function getDeviceName() {
     const adjectives = ['Quick', 'Silent', 'Bright', 'Swift', 'Gentle', 'Bold', 'Calm', 'Smart'];
     const animals = ['Fox', 'Wolf', 'Eagle', 'Lion', 'Tiger', 'Bear', 'Hawk', 'Deer'];
@@ -213,42 +246,13 @@ function getDeviceName() {
     return `${adj} ${animal}`;
 }
 
-function getClientIp(socket) {
-    const headers = socket.handshake.headers;
-
-    // Cloudflare passes the real client IP in this header
-    const cfIp = headers['cf-connecting-ip'];
-    if (cfIp && typeof cfIp === 'string') return cfIp.split(/\s*,\s*/)[0].trim();
-
-    const forwardedFor = headers['x-forwarded-for'];
-    const forwardedIp = Array.isArray(forwardedFor)
-        ? forwardedFor[0]
-        : typeof forwardedFor === 'string'
-            ? forwardedFor.split(/\s*,\s*/)[0]
-            : null;
-
-    const ip = (forwardedIp || socket.handshake.address || socket.conn.remoteAddress || '').trim();
-
-    // Normalize IPv4-mapped IPv6 (::ffff:1.2.3.4 → 1.2.3.4)
-    const normalized = ip.replace(/^::ffff:/i, '');
-
-    if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return '127.0.0.1';
-    return normalized;
-}
-
-function getRoomId(ip) {
-    if (!ip || typeof ip !== 'string') return 'room_unknown';
-
-    // IPv6: group by /48 prefix (first 3 groups of 16 bits = ISP-assigned home block)
-    // This handles the case where LAN devices each have a unique global IPv6 address
-    if (ip.includes(':')) {
-        const groups = ip.split(':');
-        const prefix = groups.slice(0, 3).join(':');
-        return `room_${prefix || 'ipv6'}`;
+function getRoomId(customRoomCode) {
+    if (customRoomCode && typeof customRoomCode === 'string') {
+        const clean = customRoomCode.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '');
+        if (clean.length > 0) return `custom_${clean}`;
     }
-
-    // IPv4: exact match (NAT means all LAN devices share the same public IP)
-    return `room_${ip}`;
+    // Default: global room — all connected devices see each other
+    return 'room_global';
 }
 
 function safeHandler(socket, handler) {
@@ -269,36 +273,66 @@ function isSocketOnline(socketId) {
     return socketId && io.sockets.sockets.has(socketId);
 }
 
+function areClientsInSameRoom(sourceSocketId, targetSocketId) {
+    const sourceClient = clients.get(sourceSocketId);
+    const targetClient = clients.get(targetSocketId);
+    return Boolean(
+        sourceClient?.roomId &&
+        targetClient?.roomId &&
+        sourceClient.roomId === targetClient.roomId
+    );
+}
+
+function emitToRoomPeer(socket, targetSocketId, eventName, payload) {
+    if (!targetSocketId || !areClientsInSameRoom(socket.id, targetSocketId)) {
+        log(`Blocked ${eventName} from ${socket.id} to ${targetSocketId}: different room`);
+        return false;
+    }
+
+    socket.to(targetSocketId).emit(eventName, payload);
+    return true;
+}
+
 // === SOCKET CONNECTION HANDLING ===
 io.on('connection', (socket) => {
     log('Client connected:', socket.id);
 
-    const clientIp = getClientIp(socket);
-    const roomId = getRoomId(clientIp);
+    const networkGroup = getNetworkGroup(socket);
 
     let client = {
         id: socket.id,
         deviceId: null,
         deviceName: null,
         clientId: null,
-        ip: clientIp,
-        roomId
+        roomId: null,
+        networkGroup
     };
 
     clients.set(socket.id, client);
-    socket.join(roomId);
-
-    if (!rooms.has(roomId)) rooms.set(roomId, new Set());
-    rooms.get(roomId).add(socket.id);
 
     socket.on('client-init', safeHandler(socket, (data) => {
-        const { clientId, deviceName } = data || {};
+        const { clientId, deviceName, roomCode } = data || {};
 
+        const roomId = getRoomId(roomCode);
         const finalDeviceName = sanitizeDeviceName(deviceName) || getDeviceName();
         const deviceId = uuidv4();
 
-        client = { ...client, deviceId, deviceName: finalDeviceName, clientId: clientId || null };
+        // Leave previous room if rejoining with different code
+        if (client.roomId && client.roomId !== roomId) {
+            socket.leave(client.roomId);
+            if (rooms.has(client.roomId)) {
+                rooms.get(client.roomId).delete(socket.id);
+                if (rooms.get(client.roomId).size === 0) rooms.delete(client.roomId);
+                else socket.to(client.roomId).emit('peer-left', { deviceId: client.deviceId, socketId: socket.id, roomId: client.roomId });
+            }
+        }
+
+        client = { ...client, deviceId, deviceName: finalDeviceName, clientId: clientId || null, roomId };
         clients.set(socket.id, client);
+
+        socket.join(roomId);
+        if (!rooms.has(roomId)) rooms.set(roomId, new Set());
+        rooms.get(roomId).add(socket.id);
 
         if (clientId) {
             clientIdToSocket.set(clientId, socket.id);
@@ -306,7 +340,7 @@ io.on('connection', (socket) => {
 
         log(`Client initialized: ${socket.id}, clientId: ${clientId}, name: ${finalDeviceName}`);
 
-        socket.emit('device-info', { deviceId, deviceName: finalDeviceName, roomId });
+        socket.emit('device-info', { deviceId, deviceName: finalDeviceName, roomId, networkGroup });
 
         // Send current peers list
         const roomClients = Array.from(rooms.get(roomId) || [])
@@ -317,7 +351,9 @@ io.on('connection', (socket) => {
                     deviceId: peer.deviceId,
                     deviceName: peer.deviceName,
                     socketId: id,
-                    clientId: peer.clientId
+                    clientId: peer.clientId,
+                    roomId: peer.roomId,
+                    networkGroup: peer.networkGroup
                 } : null;
             })
             .filter(Boolean);
@@ -330,13 +366,15 @@ io.on('connection', (socket) => {
                 deviceId: client.deviceId,
                 deviceName: client.deviceName,
                 socketId: socket.id,
-                clientId: client.clientId
+                clientId: client.clientId,
+                roomId: client.roomId,
+                networkGroup: client.networkGroup
             });
         }
 
         // Deliver any pending (offline-queued) messages
         if (clientId) {
-            const pending = popPendingMessages(clientId);
+            const pending = popPendingMessages(clientId, roomId);
             if (pending.length > 0) {
                 log(`Delivering ${pending.length} pending message(s) to ${clientId}`);
                 socket.emit('pending-messages', { messages: pending });
@@ -347,23 +385,23 @@ io.on('connection', (socket) => {
     // === WEBRTC SIGNALING ===
     socket.on('webrtc-offer', safeHandler(socket, (data) => {
         if (!data || !data.target || !data.offer) return;
-        socket.to(data.target).emit('webrtc-offer', { offer: data.offer, from: socket.id });
+        emitToRoomPeer(socket, data.target, 'webrtc-offer', { offer: data.offer, from: socket.id });
     }));
 
     socket.on('webrtc-answer', safeHandler(socket, (data) => {
         if (!data || !data.target || !data.answer) return;
-        socket.to(data.target).emit('webrtc-answer', { answer: data.answer, from: socket.id });
+        emitToRoomPeer(socket, data.target, 'webrtc-answer', { answer: data.answer, from: socket.id });
     }));
 
     socket.on('webrtc-ice-candidate', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('webrtc-ice-candidate', { candidate: data.candidate, from: socket.id });
+        emitToRoomPeer(socket, data.target, 'webrtc-ice-candidate', { candidate: data.candidate, from: socket.id });
     }));
 
     // === FILE TRANSFER SIGNALING ===
     socket.on('file-request', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('file-request', {
+        emitToRoomPeer(socket, data.target, 'file-request', {
             fileName: sanitizeFileName(data.fileName),
             fileSize: typeof data.fileSize === 'number' ? data.fileSize : 0,
             fromName: sanitizeDeviceName(data.fromName),
@@ -373,7 +411,7 @@ io.on('connection', (socket) => {
 
     socket.on('batch-file-request', safeHandler(socket, (data) => {
         if (!data || !data.target || !Array.isArray(data.files)) return;
-        socket.to(data.target).emit('batch-file-request', {
+        emitToRoomPeer(socket, data.target, 'batch-file-request', {
             files: data.files.map(f => ({
                 fileName: sanitizeFileName(f.fileName),
                 fileSize: typeof f.fileSize === 'number' ? f.fileSize : 0
@@ -386,7 +424,7 @@ io.on('connection', (socket) => {
 
     socket.on('batch-file-response', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('batch-file-response', {
+        emitToRoomPeer(socket, data.target, 'batch-file-response', {
             accepted: Boolean(data.accepted),
             batchId: data.batchId,
             from: socket.id
@@ -395,12 +433,12 @@ io.on('connection', (socket) => {
 
     socket.on('file-response', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('file-response', { accepted: Boolean(data.accepted), from: socket.id });
+        emitToRoomPeer(socket, data.target, 'file-response', { accepted: Boolean(data.accepted), from: socket.id });
     }));
 
     socket.on('transfer-progress', safeHandler(socket, (data) => {
         if (!data || !data.target) return;
-        socket.to(data.target).emit('transfer-progress', {
+        emitToRoomPeer(socket, data.target, 'transfer-progress', {
             progress: typeof data.progress === 'number' ? Math.min(100, Math.max(0, data.progress)) : 0,
             fileName: sanitizeFileName(data.fileName),
             from: socket.id
@@ -423,12 +461,18 @@ io.on('connection', (socket) => {
         const payload = {
             message: sanitized,
             fromClientId: fromClient.clientId,
-            fromSocketId: socket.id
+            fromSocketId: socket.id,
+            roomId: fromClient.roomId
         };
 
         const targetSocketId = clientIdToSocket.get(data.targetClientId);
 
         if (isSocketOnline(targetSocketId)) {
+            if (!areClientsInSameRoom(socket.id, targetSocketId)) {
+                log(`Blocked chat from ${fromClient.clientId} to ${data.targetClientId}: different room`);
+                return;
+            }
+
             // Recipient is online — deliver directly
             socket.to(targetSocketId).emit('chat-message', payload);
             log(`Chat delivered: ${fromClient.clientId} → ${data.targetClientId}`);
@@ -437,6 +481,17 @@ io.on('connection', (socket) => {
             queueMessageForClient(data.targetClientId, payload);
             log(`Chat queued for offline client: ${data.targetClientId} (queue size: ${messageQueues.get(data.targetClientId)?.length})`);
         }
+    }));
+
+    // === ROOM CREATION ===
+    socket.on('create-room', safeHandler(socket, () => {
+        let code = generateRoomCode();
+        // Ensure uniqueness — regenerate if code already in use
+        while (rooms.has(`custom_${code.toLowerCase()}`)) {
+            code = generateRoomCode();
+        }
+        socket.emit('room-created', { roomCode: code });
+        log(`Room created: ${code} by ${socket.id}`);
     }));
 
     // === DEVICE NAME CHANGE ===
@@ -457,6 +512,7 @@ io.on('connection', (socket) => {
             socket.to(currentClient.roomId).emit('peer-name-changed', {
                 socketId: socket.id,
                 deviceName: currentClient.deviceName,
+                roomId: currentClient.roomId,
                 oldName
             });
 
@@ -478,7 +534,7 @@ io.on('connection', (socket) => {
             }
 
             if (deviceId) {
-                socket.to(dRoomId).emit('peer-left', { deviceId, socketId: socket.id });
+                socket.to(dRoomId).emit('peer-left', { deviceId, socketId: socket.id, roomId: dRoomId });
             }
 
             // Only remove from clientIdToSocket if this socket is still the current one

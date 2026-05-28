@@ -12,12 +12,15 @@ export interface Peer {
   deviceName: string;
   socketId: string;
   clientId: string;
+  roomId?: string;
+  networkGroup?: string;
 }
 
 export interface DeviceInfo {
   deviceId: string;
   deviceName: string;
   roomId?: string;
+  networkGroup?: string;
 }
 
 export interface Message {
@@ -35,11 +38,23 @@ interface WebRTCConnection {
   optimizer?: TransferOptimizer;
 }
 
+const normalizeRoomCodeForStorage = (code: string) =>
+  code.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '') || 'global';
+
+const getKnownPeersStorageKey = (clientId: string, code: string) =>
+  `gavadrop-known-peers-${clientId}-${normalizeRoomCodeForStorage(code)}`;
+
 export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string, relativePath: string, fromSocketId: string) => boolean) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [roomCode, setRoomCodeState] = useState<string>('');
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setRoomCodeState(localStorage.getItem('gavadrop-room-code') || '');
+    setHydrated(true);
+  }, []);
   const connections = useRef<Map<string, WebRTCConnection>>(new Map());
   const [incomingFile, setIncomingFile] = useState<{from: string, fileName: string, fileSize: number, socketId: string} | null>(null);
   const [incomingFileRequest, setIncomingFileRequest] = useState<{from: string, fromName: string, fileName: string, fileSize: number, socketId: string} | null>(null);
@@ -51,11 +66,33 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
   const [disconnectedPeers, setDisconnectedPeers] = useState<Map<string, { peer: Peer, disconnectedAt: number }>>(new Map());
   const [knownPeers, setKnownPeers] = useState<Map<string, Peer>>(new Map());
   const disconnectionTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const currentRoomIdRef = useRef<string | null>(null);
+  const knownPeersPersistenceReady = useRef(false);
 
   // Generate unique message ID
   const generateMessageId = useCallback(() => {
     messageIdCounter.current += 1;
     return `msg_${Date.now()}_${messageIdCounter.current}_${Math.random().toString(36).substr(2, 6)}`;
+  }, []);
+
+  const isInCurrentRoom = useCallback((roomId?: string) => {
+    return !roomId || !currentRoomIdRef.current || roomId === currentRoomIdRef.current;
+  }, []);
+
+  const clearPeerRuntimeState = useCallback(() => {
+    disconnectionTimers.current.forEach(timer => clearTimeout(timer));
+    disconnectionTimers.current.clear();
+
+    connections.current.forEach(conn => conn.peerConnection.close());
+    connections.current.clear();
+
+    setPeers([]);
+    setDisconnectedPeers(new Map());
+    setKnownPeers(new Map());
+    setIncomingFile(null);
+    setIncomingFileRequest(null);
+    setIncomingBatchRequest(null);
+    setTransferProgress(null);
   }, []);
 
   // Clear all chat data (for debugging)
@@ -115,17 +152,6 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         }
       }
 
-      // Load known peers
-      const savedKnownPeers = localStorage.getItem(`gavadrop-known-peers-${clientId}`);
-      if (savedKnownPeers) {
-        try {
-          const parsed = JSON.parse(savedKnownPeers);
-          const peerMap = new Map<string, Peer>(Object.entries(parsed) as [string, Peer][]);
-          setKnownPeers(peerMap);
-        } catch (error) {
-          localStorage.removeItem(`gavadrop-known-peers-${clientId}`);
-        }
-      }
     }
   }, []);
 
@@ -141,15 +167,52 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     }
   }, [messages]);
 
+  // Known peers are room-scoped so old rooms cannot leak devices into the current room.
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const clientId = localStorage.getItem('gavadrop-client-id');
+    if (!clientId) return;
+
+    knownPeersPersistenceReady.current = false;
+    const storageKey = getKnownPeersStorageKey(clientId, roomCode);
+    const savedKnownPeers = localStorage.getItem(storageKey);
+
+    if (savedKnownPeers) {
+      try {
+        const parsed = JSON.parse(savedKnownPeers);
+        const peerMap = new Map<string, Peer>(Object.entries(parsed) as [string, Peer][]);
+        setKnownPeers(peerMap);
+      } catch {
+        localStorage.removeItem(storageKey);
+        setKnownPeers(new Map());
+      }
+    } else {
+      setKnownPeers(new Map());
+    }
+
+    const readyTimer = setTimeout(() => {
+      knownPeersPersistenceReady.current = true;
+    }, 0);
+
+    return () => clearTimeout(readyTimer);
+  }, [hydrated, roomCode]);
+
   // Save knownPeers to localStorage whenever they change
   useEffect(() => {
     const clientId = localStorage.getItem('gavadrop-client-id');
-    if (clientId && knownPeers.size > 0) {
-      const obj: Record<string, Peer> = {};
-      knownPeers.forEach((peer, id) => { obj[id] = peer; });
-      localStorage.setItem(`gavadrop-known-peers-${clientId}`, JSON.stringify(obj));
+    if (!clientId || !hydrated || !knownPeersPersistenceReady.current) return;
+
+    const storageKey = getKnownPeersStorageKey(clientId, roomCode);
+    if (knownPeers.size === 0) {
+      localStorage.removeItem(storageKey);
+      return;
     }
-  }, [knownPeers]);
+
+    const obj: Record<string, Peer> = {};
+    knownPeers.forEach((peer, id) => { obj[id] = peer; });
+    localStorage.setItem(storageKey, JSON.stringify(obj));
+  }, [knownPeers, hydrated, roomCode]);
 
   // Save unread counts to localStorage whenever they change
   useEffect(() => {
@@ -800,12 +863,14 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       localStorage.setItem('gavadrop-client-id', clientId);
     }
     
-    // Send saved device name and client ID on connection
+    // Send saved device name, client ID and room code on connection
     const savedName = localStorage.getItem('gavadrop-device-name');
+    const savedRoomCode = localStorage.getItem('gavadrop-room-code') || '';
     socketInstance.on('connect', () => {
-      socketInstance.emit('client-init', { 
+      socketInstance.emit('client-init', {
         clientId,
-        deviceName: savedName || null 
+        deviceName: savedName || null,
+        roomCode: savedRoomCode || null
       });
     });
     
@@ -987,6 +1052,11 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     });
 
     socketInstance.on('device-info', (info: DeviceInfo) => {
+      const previousRoomId = currentRoomIdRef.current;
+      currentRoomIdRef.current = info.roomId || null;
+      if (previousRoomId && info.roomId && previousRoomId !== info.roomId) {
+        clearPeerRuntimeState();
+      }
       setDeviceInfo(info);
     });
 
@@ -995,16 +1065,17 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     });
 
     socketInstance.on('peers-list', (peersList: Peer[]) => {
-      console.log('Received peers-list:', peersList);
-      setPeers(peersList);
-      setKnownPeers(prev => {
-        const next = new Map(prev);
-        peersList.forEach(p => next.set(p.clientId, p));
-        return next;
-      });
+      const roomPeers = peersList.filter(peer => isInCurrentRoom(peer.roomId));
+      console.log('Received peers-list:', roomPeers);
+      setPeers(roomPeers);
+      setDisconnectedPeers(new Map());
+      const next = new Map<string, Peer>();
+      roomPeers.forEach(p => next.set(p.clientId, p));
+      setKnownPeers(next);
     });
 
     socketInstance.on('peer-joined', (peer: Peer) => {
+      if (!isInCurrentRoom(peer.roomId)) return;
       console.log('Peer joined:', peer);
       
       // Cancel disconnection timer if this peer was disconnected
@@ -1047,7 +1118,8 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       });
     });
 
-    socketInstance.on('peer-left', (data: { socketId: string }) => {
+    socketInstance.on('peer-left', (data: { socketId: string, roomId?: string }) => {
+      if (!isInCurrentRoom(data.roomId)) return;
       setPeers(prev => {
         const leavingPeer = prev.find(p => p.socketId === data.socketId);
         if (leavingPeer) {
@@ -1082,10 +1154,15 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
         
         return prev.filter(p => p.socketId !== data.socketId);
       });
+      const connection = connections.current.get(data.socketId);
+      if (connection) {
+        connection.peerConnection.close();
+      }
       connections.current.delete(data.socketId);
     });
 
-    socketInstance.on('peer-name-changed', (data: { socketId: string, deviceName: string }) => {
+    socketInstance.on('peer-name-changed', (data: { socketId: string, deviceName: string, roomId?: string }) => {
+      if (!isInCurrentRoom(data.roomId)) return;
       setPeers(prev => prev.map(peer => 
         peer.socketId === data.socketId 
           ? { ...peer, deviceName: data.deviceName }
@@ -1259,18 +1336,18 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     };
 
     // Server now sends fromClientId directly — no peer lookup needed
-    const handleChatMessage = (data: { message: Message, fromClientId: string, fromSocketId: string }) => {
-      if (!data.fromClientId) return;
+    const handleChatMessage = (data: { message: Message, fromClientId: string, fromSocketId: string, roomId?: string }) => {
+      if (!data.fromClientId || !isInCurrentRoom(data.roomId)) return;
       console.log('Received chat message via Socket:', data);
       storeIncomingMessage(data.fromClientId, data.message);
     };
 
     // Pending messages queued while we were offline
-    const handlePendingMessages = (data: { messages: Array<{ message: Message, fromClientId: string }> }) => {
+    const handlePendingMessages = (data: { messages: Array<{ message: Message, fromClientId: string, roomId?: string }> }) => {
       if (!Array.isArray(data.messages) || data.messages.length === 0) return;
       console.log(`Received ${data.messages.length} pending message(s)`);
-      data.messages.forEach(({ message, fromClientId }) => {
-        if (fromClientId) storeIncomingMessage(fromClientId, message);
+      data.messages.forEach(({ message, fromClientId, roomId }) => {
+        if (fromClientId && isInCurrentRoom(roomId)) storeIncomingMessage(fromClientId, message);
       });
     };
 
@@ -1281,7 +1358,7 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
       socket.off('chat-message', handleChatMessage);
       socket.off('pending-messages', handlePendingMessages);
     };
-  }, [socket, peers]);
+  }, [socket, isInCurrentRoom]);
 
   const resendFile = useCallback(async (fileName: string, fileSize: number, deviceName: string, fileData?: string) => {
     // Find the target device by name
@@ -1357,10 +1434,41 @@ export const useWebRTC = (onFileReceived?: (data: ArrayBuffer, fileName: string,
     });
   }, [peers, sendFile]);
 
+  const setRoomCode = useCallback((code: string) => {
+    const trimmed = code.trim();
+    localStorage.setItem('gavadrop-room-code', trimmed);
+    setRoomCodeState(trimmed);
+    clearPeerRuntimeState();
+    if (socket?.connected) {
+      const clientId = localStorage.getItem('gavadrop-client-id');
+      const savedName = localStorage.getItem('gavadrop-device-name');
+      socket.emit('client-init', {
+        clientId,
+        deviceName: savedName || null,
+        roomCode: trimmed || null
+      });
+    }
+  }, [clearPeerRuntimeState, socket]);
+
+  const createRoom = useCallback((): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!socket?.connected) return;
+      socket.once('room-created', ({ roomCode: code }: { roomCode: string }) => {
+        setRoomCode(code);
+        resolve(code);
+      });
+      socket.emit('create-room');
+    });
+  }, [socket, setRoomCode]);
+
   return {
     peers,
     deviceInfo,
     isConnected,
+    roomCode,
+    roomCodeHydrated: hydrated,
+    setRoomCode,
+    createRoom,
     sendFile,
     sendBatchFiles,
     sendMessage,

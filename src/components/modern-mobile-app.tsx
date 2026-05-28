@@ -40,8 +40,8 @@ interface ModernMobileAppProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   folderInputRef: React.RefObject<HTMLInputElement | null>;
   isSelectingFolderRef: React.MutableRefObject<boolean>;
-  peers: Array<{socketId: string; clientId: string; deviceName: string}>;
-  deviceInfo: {deviceName: string; deviceId: string; roomId?: string} | null;
+  peers: Array<{socketId: string; clientId: string; deviceName: string; roomId?: string; networkGroup?: string}>;
+  deviceInfo: {deviceName: string; deviceId: string; roomId?: string; networkGroup?: string} | null;
   isConnected: boolean;
   sendFile: (file: File, peerId: string) => Promise<void>;
   sendBatchFiles: (files: File[], peerId: string) => Promise<void>;
@@ -49,7 +49,7 @@ interface ModernMobileAppProps {
   messages: Map<string, Array<{id: string; text: string; isOwn: boolean; fromName: string; timestamp: number}>>;
   unreadCounts: Map<string, number>;
   markMessagesAsRead: (peerId: string) => void;
-  disconnectedPeers: Map<string, {peer: {socketId: string; clientId: string; deviceName: string}; disconnectedAt: number}>;
+  disconnectedPeers: Map<string, {peer: {socketId: string; clientId: string; deviceName: string; roomId?: string; networkGroup?: string}; disconnectedAt: number}>;
   incomingFileRequest: {from: string, fromName: string, fileName: string, fileSize: number, socketId: string} | null;
   incomingBatchRequest: {fromName: string, files: Array<{fileName: string, fileSize: number}>, socketId: string, batchId: string} | null;
   transferProgress: {progress: number; fileName: string; type: 'sending' | 'receiving'} | null;
@@ -59,6 +59,9 @@ interface ModernMobileAppProps {
   rejectBatchFiles: (socketId: string, batchId: string) => void;
   changeDeviceName: (name: string) => void;
   resendFile: (fileName: string, fileSize: number, deviceName: string, fileData?: string) => Promise<void>;
+  roomCode: string;
+  setRoomCode: (code: string) => void;
+  createRoom: () => Promise<string>;
   handleFilesSelect: (files: File[]) => void;
   handleFolderSelect: () => void;
   handleFileSend: () => Promise<void>;
@@ -136,7 +139,10 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
     setNewDeviceName,
     setLastSelectedClientId,
     setIsEncryptionEnabled,
-    setEncryptionPassword
+    setEncryptionPassword,
+    roomCode,
+    setRoomCode,
+    createRoom
   } = props;
 
   // Helper functions that should come from desktop
@@ -223,6 +229,9 @@ export default function ModernMobileApp(props: ModernMobileAppProps) {
             onNameChange={setNewDeviceName}
             onSaveName={handleSaveDeviceName}
             onCancelEdit={handleCancelEditName}
+            roomCode={roomCode}
+            onRoomCodeChange={setRoomCode}
+            onCreateRoom={createRoom}
           />
         );
       

@@ -22,8 +22,10 @@ import {
   ChatCircleIcon,
   CheckIcon,
   ClockCounterClockwiseIcon,
+  CopyIcon,
   DeviceMobileIcon,
   DeviceTabletIcon,
+  DoorIcon,
   DownloadSimpleIcon,
   FolderIcon,
   LockIcon,
@@ -33,6 +35,7 @@ import {
   PaperPlaneTiltIcon,
   PackageIcon,
   PencilLineIcon,
+  PlusIcon,
   TrashIcon,
   UploadSimpleIcon,
   WifiHighIcon,
@@ -77,6 +80,7 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState("");
   const [desktopDeviceSearch, setDesktopDeviceSearch] = useState("");
   const [lastSelectedClientId, setLastSelectedClientId] = useState<string | null>(null);
+  const [desktopRoomInput, setDesktopRoomInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const dropAreaRef = useRef<HTMLDivElement>(null);
@@ -200,11 +204,15 @@ export default function Home() {
     };
   }, []);
   
-  const { 
-    peers, 
-    deviceInfo, 
-    isConnected, 
-    sendFile, 
+  const {
+    peers,
+    deviceInfo,
+    isConnected,
+    roomCode,
+    roomCodeHydrated,
+    setRoomCode,
+    createRoom,
+    sendFile,
     sendBatchFiles,
     sendMessage,
     messages,
@@ -214,8 +222,8 @@ export default function Home() {
     knownPeers,
     incomingFileRequest,
     incomingBatchRequest,
-    transferProgress, 
-    acceptFile, 
+    transferProgress,
+    acceptFile,
     rejectFile,
     acceptBatchFiles,
     rejectBatchFiles,
@@ -260,6 +268,8 @@ export default function Home() {
       return true; // File gestito
     }, [])
   );
+
+  useEffect(() => { setDesktopRoomInput(roomCode); }, [roomCode]);
 
   // Process received files and save to history
   useEffect(() => {
@@ -1246,6 +1256,11 @@ export default function Home() {
                         }`}>
                           {peer.deviceName}
                         </p>
+                        {peer.networkGroup && deviceInfo?.networkGroup && peer.networkGroup === deviceInfo.networkGroup && (
+                          <span className="shrink-0 rounded-md bg-[#dff36b]/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#dff36b]">
+                            LAN
+                          </span>
+                        )}
                       </div>
                       <p className={`text-xs truncate ${isSelected ? 'text-[#c9a6ff]/80' : 'text-white/45'}`}>
                         {isSelected ? t("device.selected") : getPeerLastActivity(peer)}
@@ -1489,6 +1504,9 @@ export default function Home() {
           rejectBatchFiles={rejectBatchFiles}
           changeDeviceName={changeDeviceName}
           resendFile={resendFile}
+          roomCode={roomCode}
+          setRoomCode={setRoomCode}
+          createRoom={createRoom}
           handleFilesSelect={handleMobileFilesSelect}
           handleFolderSelect={handleMobileFolderSelect}
           handleFileSend={handleFileSend}
@@ -1584,10 +1602,50 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* Room panel */}
+      <div className="absolute right-[290px] top-7 z-20 hidden w-[260px] md:block">
+        <div className="flex h-[76px] items-center bg-[#171916] rounded-[1rem] px-4">
+          {roomCodeHydrated && roomCode ? (
+            <div className="flex w-full items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-white/45 mb-0.5">Stanza</p>
+                <p className="font-mono font-bold text-sm tracking-widest text-white">{roomCode.toUpperCase()}</p>
+              </div>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white/45 hover:text-white"
+                onClick={() => { navigator.clipboard.writeText(roomCode.toUpperCase()); toast.success('Codice copiato'); }}>
+                <CopyIcon className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white/45 hover:text-red-400"
+                onClick={() => setRoomCode('')}>
+                <DoorIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex w-full items-center gap-2">
+              <Input
+                value={desktopRoomInput}
+                onChange={(e) => setDesktopRoomInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && desktopRoomInput.trim()) setRoomCode(desktopRoomInput.trim());
+                  if (e.key === 'Escape') setDesktopRoomInput('');
+                }}
+                onBlur={() => { if (desktopRoomInput.trim()) setRoomCode(desktopRoomInput.trim()); }}
+                placeholder="Codice stanza"
+                className="h-8 flex-1 text-sm bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/30 rounded-lg font-mono uppercase"
+              />
+              <Button size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0 text-white/45 hover:text-[#dff36b]"
+                onClick={async () => { await createRoom(); }}>
+                <PlusIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Device name panel */}
       {deviceInfo && (
         <div className="absolute right-5 top-7 z-20 hidden w-[260px] md:block">
-          <div className="flex min-h-[68px] items-center bg-[#171916] rounded-[1rem] p-4">
+          <div className="flex h-[76px] items-center bg-[#171916] rounded-[1rem] p-4">
             {isEditingName ? (
               <div className="flex items-center gap-2">
                 <Input
@@ -1610,14 +1668,9 @@ export default function Home() {
               </div>
             ) : (
               <div className="flex w-full items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs text-white/45 mb-1">{t("device.yourDevice")}</p>
                   <p className="font-medium text-sm text-white">{deviceInfo.deviceName}</p>
-                  {deviceInfo.roomId && (
-                    <p className="mt-0.5 text-[10px] font-mono text-white/30 select-all">
-                      {deviceInfo.roomId.replace('room_', '')}
-                    </p>
-                  )}
                 </div>
                 <Button size="sm" variant="ghost" onClick={handleStartEditName} className="h-8 w-8 p-0">
                   <PencilLineIcon className="h-4 w-4" />
